@@ -2,7 +2,7 @@ Feature: As an administrator, I want to access course categories via an API conn
 
   Scenario Outline: When a GET request is sent to the /api/categories endpoint with valid authorization,
   the response status code should be 200, the remark should be “success”, and the information of id(x)
-  (slug, parent_id, icon, order, title, category_id, locale) should be validated.
+  (slug, parent_id, icon., order, title, category_id, locale) should be validated.
 
     * The api user constructs the base url with the "admin" token.
     # Api kullanicisi "admin" token ile base urli olusturur
