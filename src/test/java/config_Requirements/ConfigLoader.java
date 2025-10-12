@@ -10,6 +10,10 @@ import java.util.Map;
 
 public class ConfigLoader {
 
+    public static ConfigLoader getInstance() {
+        return new ConfigLoader();  // constructor private ise yine sınıf içinde çağrılabilir
+    }
+
     private Map<String, Object> config;
 
     // Constructor ile YAML dosyasını yükleme. otomatik olarak config.yaml dosyası okunacak ve Map’e yüklenecek.
