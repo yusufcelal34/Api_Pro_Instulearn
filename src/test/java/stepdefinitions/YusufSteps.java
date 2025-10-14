@@ -1116,20 +1116,38 @@ public class YusufSteps extends YusufStepsBase {
     }
 
     // Feature adımı: * Verify result exists only if MIN(rating) < 3
-    @Then("Verify result exists only if MIN\\(rating\\) < {int}")
+    @Then("Verify result exists only if MIN\\(rating) < {int}")
     public void verify_result_exists_only_if_min_rating_lt_limit(Integer limit) {
         this.u31_limit = limit;
 
         boolean hasRows = (u31_totalReviews != null && u31_totalReviews > 0);
 
-        System.out.printf("[US31 VERIFY] limit=%d -> hasRows=%s, min=%s, total=%s%n",
+        System.out.printf(
+                "[US31 VERIFY] limit=%d -> hasRows=%s, min=%s, total=%s%n",
                 limit,
                 hasRows,
                 String.valueOf(u31_minRating),
-                String.valueOf(u31_totalReviews));
+                String.valueOf(u31_totalReviews)
+        );
 
-    }
-
+        // Eğer minimum rating, verilen limitin altındaysa veri olmalı
+        if (u31_minRating != null) {
+            if (u31_minRating < limit) {
+                Assert.assertTrue(
+                        "US31: Min rating limitin altında ama satır bulunamadı.",
+                        hasRows
+                );
+            } else {
+                // limitin üstündeyse kayıt dönmemesi normal
+                Assert.assertFalse(
+                        "US31: Min rating >= limit olduğu halde satır döndü.",
+                        hasRows
+                );
+            }
+        } else {
+            System.out.println("[US31 INFO] Veri bulunamadı veya min_rating null (hiç yorum olmayabilir).");
+        }
+}
     // ======================================================
     // US32 — Support tickets by department and status
     // Feature adımı: * Run grouping by department and status
