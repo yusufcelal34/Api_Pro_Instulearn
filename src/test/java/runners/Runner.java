@@ -15,8 +15,9 @@ import org.junit.runner.RunWith;
         },
         features = "src/test/resources/features/api/feature/yusuf", // ← narrow the scope
         glue = {"stepdefinitions","hooks","utilities"},
-        tags = "@yusuf",
-        dryRun = false
+
+        tags = "@api",
+        dryRun =true
 )
 public class Runner {}
 

@@ -1,5 +1,5 @@
 Feature: As an administrator, I want to access detailed information about the course category with the specified ID via an API connection.
-  @API
+
   Scenario Outline: When a GET request with valid authorization and correct id is sent to the /api/category/{id} endpoint,
   the response status code should be 200, the remark should be “success”, and the list data (id, slug, parent_id, icon,
   order, title, category_id, locale) in the response body should be validated.
@@ -19,7 +19,7 @@ Feature: As an administrator, I want to access detailed information about the co
 
     Examples:
       |id| data_id | slug               | icon                                              | order | translations_id | category_id | locale | title  |
-     |614 | 614     | Testing | /store/1/default_images/categories_icons/sub_categories/zap.png| 45  | 57             | 614         | en     | Testing |
+      |614 | 614     | Testing | /store/1/default_images/categories_icons/sub_categories/zap.png| 45  | 57             | 614         | en     | Testing |
      # | 883 | 883     | Online-Education-871 | /store/1/default_images/categories_icons/code.png | 216   | 326           | 883         | en     | Online Education |
 
   Scenario Outline: When a GET request is sent to the /api/category/{id} endpoint with valid authorization information
