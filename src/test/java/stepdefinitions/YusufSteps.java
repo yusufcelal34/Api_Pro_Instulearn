@@ -12,10 +12,12 @@ import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 import org.json.JSONObject;
 import org.json.JSONTokener;
+import org.junit.Assert;
 
 import static io.restassured.RestAssured.given;
 import static org.junit.Assert.*;
 
+import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -850,4 +852,476 @@ public class YusufSteps extends YusufStepsBase {
         ctx.put(varName, val);
         System.out.println("[store_first_valid_int] " + fieldName + " => " + val + " as " + varName);
     }
+
+    //  SQL SERVER
+    // ----------------31 DB---------------
+    // =========================
+    // JDBC Bağlantı Bilgileri
+    // =========================
+    private static final String JDBC_URL  = "jdbc:mysql://195.35.59.18/u201212290_qainstulearn?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
+    private static final String JDBC_USER = "u201212290_qainstuser";
+    private static final String JDBC_PASS = "A/s&Yh[qU0";
+
+    private Connection connection;
+
+    // =========================
+    // US31 Alanları
+    // =========================
+    private Integer u31_productId;
+    private Integer u31_totalReviews;
+    private Integer u31_minRating;
+    private Integer u31_maxRating;
+    private Double  u31_avgRating;
+    private Integer u31_limit = 3; // default limit
+
+    // =========================
+    // US32 Sonuç Listesi
+    // =========================
+    private List<Map<String, Object>> u32_rows;
+
+    // =========================
+    // US33 Sonuç Listesi
+    // =========================
+    private List<Map<String, Object>> u33_rows;
+
+    // =========================
+    // Yardımcılar
+    // =========================
+    private void ensureConnection() throws SQLException {
+        if (connection == null || connection.isClosed()) {
+            connection = DriverManager.getConnection(JDBC_URL, JDBC_USER, JDBC_PASS);
+        }
+    }
+
+    private static void closeQuiet(AutoCloseable c) {
+        if (c != null) try { c.close(); } catch (Exception ignored) {}
+    }
+
+    private static Integer getIntOrNull(ResultSet rs, String col) throws SQLException {
+        int v = rs.getInt(col);
+        return rs.wasNull() ? null : v;
+    }
+
+    private static Double getDoubleOrNull(ResultSet rs, String col) throws SQLException {
+        double v = rs.getDouble(col);
+        return rs.wasNull() ? null : v;
+    }
+
+    private static List<Map<String, Object>> rsToList(ResultSet rs) throws SQLException {
+        List<Map<String, Object>> rows = new ArrayList<>();
+        ResultSetMetaData md = rs.getMetaData();
+        int cc = md.getColumnCount();
+        while (rs.next()) {
+            Map<String, Object> row = new LinkedHashMap<>();
+            for (int i = 1; i <= cc; i++) {
+                String key = md.getColumnLabel(i);
+                Object val = rs.getObject(i);
+                row.put(key, val);
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private static int resolveProductIdDefault() {
+        // JVM arg / ENV ile override: -Dproduct_id=523 veya ENV PRODUCT_ID=523
+        String sys = System.getProperty("product_id");
+        if (sys != null && sys.trim().matches("\\d+")) return Integer.parseInt(sys.trim());
+        String env = System.getenv("PRODUCT_ID");
+        if (env != null && env.trim().matches("\\d+")) return Integer.parseInt(env.trim());
+        return 101; // örnek default
+    }
+
+    private String currentSchema() throws SQLException {
+        try (Statement st = connection.createStatement();
+             ResultSet rs = st.executeQuery("SELECT DATABASE()")) {
+            rs.next();
+            return rs.getString(1);
+        }
+    }
+
+    private String findFirstExistingColumn(String table, List<String> candidates) throws SQLException {
+        ensureConnection();
+        String schema = currentSchema();
+
+        String placeholders = String.join(",", Collections.nCopies(candidates.size(), "?"));
+        String orderQuoted = "'" + String.join("','", candidates) + "'";
+
+        String sql =
+                "SELECT COLUMN_NAME " +
+                        "FROM information_schema.COLUMNS " +
+                        "WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME IN (" + placeholders + ") " +
+                        "ORDER BY FIELD(COLUMN_NAME, " + orderQuoted + ") " +
+                        "LIMIT 1";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            int i = 1;
+            ps.setString(i++, schema);
+            ps.setString(i++, table);
+            for (String c : candidates) ps.setString(i++, c);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getString(1);
+            }
+        }
+        return null;
+    }
+
+    private String findDepartmentLikeTable(String idCol, String titleCol) throws SQLException {
+        ensureConnection();
+        String schema = currentSchema();
+
+        List<String> candidates = Arrays.asList(
+                "departments",
+                "support_departments",
+                "ticket_departments",
+                "help_departments",
+                "dept",
+                "department"
+        );
+
+        // 1) Doğrudan aday isimlerden biri var mı?
+        String placeholders = String.join(",", Collections.nCopies(candidates.size(), "?"));
+        String sql =
+                "SELECT TABLE_NAME " +
+                        "FROM information_schema.TABLES " +
+                        "WHERE TABLE_SCHEMA = ? AND TABLE_NAME IN (" + placeholders + ")";
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            int i = 1;
+            ps.setString(i++, schema);
+            for (String c : candidates) ps.setString(i++, c);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String tname = rs.getString(1);
+                    String id = findFirstExistingColumn(tname, Arrays.asList(idCol, "id"));
+                    String ttl= findFirstExistingColumn(tname, Arrays.asList(titleCol, "title", "name"));
+                    if (id != null && ttl != null) return tname;
+                }
+            }
+        }
+
+        // 2) "department" içeren tablo adlarını tara
+        String likeSql =
+                "SELECT TABLE_NAME " +
+                        "FROM information_schema.TABLES " +
+                        "WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE '%department%'";
+        try (PreparedStatement ps = connection.prepareStatement(likeSql)) {
+            ps.setString(1, schema);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String tname = rs.getString(1);
+                    String id = findFirstExistingColumn(tname, Arrays.asList(idCol, "id"));
+                    String ttl= findFirstExistingColumn(tname, Arrays.asList(titleCol, "title", "name"));
+                    if (id != null && ttl != null) return tname;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // =========================
+    // BACKGROUND
+    // =========================
+    @Given("Database connection is established.")
+    public void database_connection_is_established() {
+        try {
+            ensureConnection();
+            System.out.println("[db] Connection established.");
+        } catch (SQLException e) {
+            throw new RuntimeException("DB connect failed", e);
+        }
+    }
+
+    // ======================================================
+    // US31 — Review stats for a product; validate min rating < 3
+    // Feature adımı: * Execute review stats query by :product_id
+    // ======================================================
+    @When("Execute review stats query by :product_id")
+    public void execute_review_stats_query_by_product_id(String docString) {
+        // Feature içindeki DocString’i sadece log amaçlı kullanıyoruz
+        if (docString != null && !docString.isBlank()) {
+            System.out.println("[US31 doc] \n" + docString);
+        }
+
+        try {
+            ensureConnection();
+
+            String table = "product_reviews";
+            // Şemaya göre rating/product_id kolonlarını dinamik tespit et
+            String ratingCol = findFirstExistingColumn(table,
+                    Arrays.asList("rating", "rate", "rates", "score", "stars", "point"));
+            String productIdCol = findFirstExistingColumn(table,
+                    Arrays.asList("product_id", "productId", "product"));
+
+            if (ratingCol == null) {
+                throw new RuntimeException("US31: rating alanı bulunamadı. Lütfen şemayı kontrol edin.");
+            }
+            if (productIdCol == null) {
+                throw new RuntimeException("US31: product_id alanı bulunamadı. Lütfen şemayı kontrol edin.");
+            }
+
+            int productId = resolveProductIdDefault();
+            this.u31_productId = productId;
+
+            String limSys = System.getProperty("rate_limit");
+            if (limSys != null && limSys.matches("\\d+")) this.u31_limit = Integer.parseInt(limSys);
+
+            final String sql =
+                    "SELECT " + productIdCol + " AS product_id, " +
+                            "       COUNT(*) AS total_reviews, " +
+                            "       ROUND(AVG(" + ratingCol + "),2) AS avg_rating, " +
+                            "       MIN(" + ratingCol + ") AS min_rating, " +
+                            "       MAX(" + ratingCol + ") AS max_rating " +
+                            "FROM " + table + " " +
+                            "WHERE " + productIdCol + " = ? " +
+                            "GROUP BY " + productIdCol + " " +
+                            "HAVING MIN(" + ratingCol + ") < ?";
+
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setInt(1, productId);
+                ps.setInt(2, u31_limit);
+                try (ResultSet rs = ps.executeQuery()) {
+                    // Varsayılanlar
+                    u31_totalReviews = 0;
+                    u31_avgRating    = null;
+                    u31_minRating    = null;
+                    u31_maxRating    = null;
+
+                    if (rs.next()) {
+                        u31_totalReviews = rs.getInt("total_reviews");
+                        u31_avgRating    = getDoubleOrNull(rs, "avg_rating");
+                        u31_minRating    = getIntOrNull(rs, "min_rating");
+                        u31_maxRating    = getIntOrNull(rs, "max_rating");
+                    }
+                }
+            }
+
+            System.out.printf(
+                    "[US31] table=%s ratingCol=%s productIdCol=%s | product_id=%d | total=%d | avg=%s | min=%s | max=%s | limit=%d%n",
+                    table,
+                    ratingCol,
+                    productIdCol,
+                    u31_productId,
+                    u31_totalReviews,
+                    (u31_avgRating == null ? "null" : String.format("%.2f", u31_avgRating)),
+                    String.valueOf(u31_minRating),
+                    String.valueOf(u31_maxRating),
+                    u31_limit
+            );
+
+        } catch (SQLException e) {
+            throw new RuntimeException("US31 query failed", e);
+        }
+    }
+
+    // Feature adımı: * Verify result exists only if MIN(rating) < 3
+    @Then("Verify result exists only if MIN\\(rating) < {int}")
+    public void verify_result_exists_only_if_min_rating_lt_limit(Integer limit) {
+        this.u31_limit = limit;
+
+        boolean hasRows = (u31_totalReviews != null && u31_totalReviews > 0);
+
+        System.out.printf(
+                "[US31 VERIFY] limit=%d -> hasRows=%s, min=%s, total=%s%n",
+                limit,
+                hasRows,
+                String.valueOf(u31_minRating),
+                String.valueOf(u31_totalReviews)
+        );
+
+        // Eğer minimum rating, verilen limitin altındaysa veri olmalı
+        if (u31_minRating != null) {
+            if (u31_minRating < limit) {
+                Assert.assertTrue(
+                        "US31: Min rating limitin altında ama satır bulunamadı.",
+                        hasRows
+                );
+            } else {
+                // limitin üstündeyse kayıt dönmemesi normal
+                Assert.assertFalse(
+                        "US31: Min rating >= limit olduğu halde satır döndü.",
+                        hasRows
+                );
+            }
+        } else {
+            System.out.println("[US31 INFO] Veri bulunamadı veya min_rating null (hiç yorum olmayabilir).");
+        }
 }
+    // ======================================================
+    // US32 — Support tickets by department and status
+    // Feature adımı: * Run grouping by department and status
+    // ======================================================
+    @When("Run grouping by department and status")
+    public void run_grouping_by_department_and_status(String docString) {
+        if (docString != null && !docString.isBlank()) {
+            System.out.println("[US32 doc] \n" + docString);
+        }
+
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ensureConnection();
+
+            // supports.department_id kolon adını tespit et
+            String supportsTable = "supports";
+            String depIdColInSupports = findFirstExistingColumn(supportsTable,
+                    Arrays.asList("department_id", "dept_id", "departmentId", "deptId"));
+
+            if (depIdColInSupports == null) {
+                throw new RuntimeException("US32: supports tablosunda department_id benzeri kolon bulunamadı.");
+            }
+
+            // Department tablosunu ve kolonlarını dinamik bul
+            String deptTable = findDepartmentLikeTable("id", "title");
+            if (deptTable == null) {
+                // Son çare: departman başlığını olmadan, sadece supports.status toplulaştır.
+                System.out.println("[US32 WARN] Department tablosu bulunamadı. Sadece status bazlı gruplama yapılacak.");
+                final String fallbackSql =
+                        "SELECT " + depIdColInSupports + " AS department_id, " +
+                                "       NULL        AS department_title, " +
+                                "       s.status, COUNT(*) AS ticket_count " +
+                                "FROM " + supportsTable + " s " +
+                                "GROUP BY " + depIdColInSupports + ", s.status " +
+                                "ORDER BY " + depIdColInSupports + ", s.status";
+                ps = connection.prepareStatement(fallbackSql);
+            } else {
+                String deptIdCol    = findFirstExistingColumn(deptTable, Arrays.asList("id", "department_id"));
+                String deptTitleCol = findFirstExistingColumn(deptTable, Arrays.asList("title", "name"));
+
+                if (deptIdCol == null)   throw new RuntimeException("US32: " + deptTable + " için id kolonu bulunamadı.");
+                if (deptTitleCol == null)deptTitleCol = "NULL"; // yoksa NULL alias
+
+                final String sql =
+                        "SELECT d." + deptIdCol + " AS department_id, " +
+                                (deptTitleCol.equals("NULL") ? "NULL AS department_title, " : "d." + deptTitleCol + " AS department_title, ") +
+                                "       s.status, COUNT(*) AS ticket_count " +
+                                "FROM " + supportsTable + " s " +
+                                "JOIN " + deptTable + " d ON d." + deptIdCol + " = s." + depIdColInSupports + " " +
+                                "GROUP BY d." + deptIdCol + ", " + (deptTitleCol.equals("NULL") ? "department_title" : "d." + deptTitleCol) + ", s.status " +
+                                "ORDER BY d." + deptIdCol + ", s.status";
+                ps = connection.prepareStatement(sql);
+            }
+
+            rs = ps.executeQuery();
+            u32_rows = rsToList(rs);
+
+            System.out.println("[US32] rowCount=" + (u32_rows == null ? 0 : u32_rows.size()));
+            if (u32_rows != null && !u32_rows.isEmpty()) {
+                System.out.println("[US32] firstRow=" + u32_rows.get(0));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("US32 query failed", e);
+        } finally {
+            closeQuiet(rs);
+            closeQuiet(ps);
+        }
+    }
+
+    @Then("Verify grouped counts returned")
+    public void verify_grouped_counts_returned() {
+        Assert.assertNotNull("US32 rows null döndü", u32_rows);
+        System.out.println("[US32 VERIFY] rowCount=" + u32_rows.size());
+    }
+
+    // ======================================================
+    // US33 — Active in-stock products created in last 30 days
+    // Feature adımı: * Execute products filter query for last 30 days
+    // ======================================================
+    @When("Execute products filter query for last 30 days")
+    public void execute_products_filter_query_for_last_30_days(String docString) {
+        if (docString != null && !docString.isBlank()) {
+            System.out.println("[US33 doc] \n" + docString);
+        }
+
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ensureConnection();
+
+            String table = "products";
+
+            // Dinamik kolonlar
+            String idCol       = findFirstExistingColumn(table, Arrays.asList("id","product_id","pk","pid"));
+            String titleCol    = findFirstExistingColumn(table, Arrays.asList("title","name","product_title","productName"));
+            String stockCol    = findFirstExistingColumn(table, Arrays.asList("stock","quantity","qty","inventory"));
+            String activeCol   = findFirstExistingColumn(table, Arrays.asList("is_active","active","status","enabled","isActive"));
+            String createdCol  = findFirstExistingColumn(table, Arrays.asList("created_at","createdAt","created_date","createdOn","inserted_at"));
+
+            if (idCol == null)      idCol = "NULL";
+            if (titleCol == null)   titleCol = "NULL"; // title olmayabilir
+            if (stockCol == null)   throw new RuntimeException("US33: stok alanı bulunamadı (stock/quantity/qty/inventory).");
+            if (activeCol == null)  throw new RuntimeException("US33: aktiflik alanı bulunamadı (is_active/active/status/enabled).");
+            if (createdCol == null) throw new RuntimeException("US33: created_at alanı bulunamadı.");
+
+            // Basit durumda aktiflik 1/0 ise:
+            String sql =
+                    "SELECT " +
+                            (idCol.equals("NULL") ? "NULL AS id" : idCol + " AS id") + ", " +
+                            (titleCol.equals("NULL") ? "NULL AS title" : titleCol + " AS title") + ", " +
+                            stockCol + " AS stock, " +
+                            activeCol + " AS is_active, " +
+                            createdCol + " AS created_at " +
+                            "FROM " + table + " " +
+                            "WHERE " + stockCol + " > 0 " +
+                            "  AND " + activeCol + " = 1 " +    // Eğer status string ise (örn: 'active'), burayı projene göre uyarlayabilirsin.
+                            "  AND " + createdCol + " >= NOW() - INTERVAL 30 DAY";
+
+            ps = connection.prepareStatement(sql);
+            rs = ps.executeQuery();
+            u33_rows = rsToList(rs);
+
+            System.out.println("[US33] rowCount=" + (u33_rows == null ? 0 : u33_rows.size()));
+            if (u33_rows != null && !u33_rows.isEmpty()) {
+                System.out.println("[US33] firstRow=" + u33_rows.get(0));
+            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException("US33 query failed", e);
+        } finally {
+            closeQuiet(rs);
+            closeQuiet(ps);
+        }
+    }
+
+    @Then("If zero rows, assert informational note")
+    public void if_zero_rows_assert_informational_note() {
+        Assert.assertNotNull("US33 rows null döndü", u33_rows);
+        if (u33_rows.isEmpty()) {
+            System.out.println("[US33 NOTE] no product found (son 30 günde aktif & stoklu ürün yok).");
+        } else {
+            for (Map<String, Object> row : u33_rows) {
+                Object stock  = row.get("stock");
+                Object active = row.get("is_active");
+                Assert.assertTrue("US33: stock > 0 beklenirdi",
+                        stock instanceof Number && ((Number) stock).intValue() > 0);
+                if (active instanceof Number) {
+                    Assert.assertEquals("US33: is_active = 1 beklenirdi", 1, ((Number) active).intValue());
+                } else if (active instanceof String) {
+                    Assert.assertTrue("US33: status 'active' benzeri beklenir",
+                            String.valueOf(active).toLowerCase().contains("active"));
+                }
+            }
+        }
+        System.out.println("[US33 VERIFY] rowCount=" + u33_rows.size());
+    }
+
+    // =========================
+    // KAPAT
+    // =========================
+    @When("Database connection is closed")
+    public void database_connection_is_closed() {
+        try {
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+                System.out.println("[db] Connection closed.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("DB close failed", e);
+        } finally {
+            connection = null;
+        }
+    }
+}
+
