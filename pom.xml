@@ -12,70 +12,93 @@
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Newman vars -->
+        <newman.collection>${project.basedir}/supports.postman_collection.json</newman.collection>
+        <newman.environment>${project.basedir}/env.json</newman.environment>
+        <newman.report.dir>${project.basedir}/newman-reports</newman.report.dir>
+
+        <!-- Run info -->
+        <maven.build.timestamp.format>yyyyMMdd-HHmmss</maven.build.timestamp.format>
     </properties>
+
     <dependencies>
-        <!-- JUnit 5 bağımlılığı -->
+        <!-- JUnit 5 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-engine</artifactId>
             <version>5.7.0</version>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/io.rest-assured/rest-assured -->
+
+        <!-- Rest-Assured -->
         <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <version>4.5.1</version>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.json/json -->
+
+        <!-- JSON / Gson -->
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
             <version>20231013</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.google.code.gson/gson -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.9.0</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.projectlombok/lombok -->
+
+        <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.30</version>
             <scope>provided</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/io.cucumber/cucumber-java -->
+
+        <!-- Cucumber -->
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-java</artifactId>
             <version>7.2.3</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/io.cucumber/cucumber-junit -->
         <dependency>
             <groupId>io.cucumber</groupId>
             <artifactId>cucumber-junit</artifactId>
             <version>7.2.3</version>
             <scope>test</scope>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java -->
+
+        <!-- Selenium -->
         <dependency>
             <groupId>org.seleniumhq.selenium</groupId>
             <artifactId>selenium-java</artifactId>
             <version>4.7.1</version>
         </dependency>
+
         <dependency>
             <groupId>com.github.javafaker</groupId>
             <artifactId>javafaker</artifactId>
             <version>1.0.2</version>
         </dependency>
+
+        <!-- SnakeYAML -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>2.2</version>
+        </dependency>
+
+        <!-- MySQL Connector -->
         <dependency>
             <groupId>mysql</groupId>
             <artifactId>mysql-connector-java</artifactId>
             <version>8.0.32</version>
         </dependency>
+
         <!-- Allure JUnit 5 -->
         <dependency>
             <groupId>io.qameta.allure</groupId>
@@ -83,7 +106,7 @@
             <version>2.13.8</version>
         </dependency>
 
-        <!-- Apache POI for Excel Handling -->
+        <!-- Apache POI -->
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi</artifactId>
@@ -94,6 +117,204 @@
             <artifactId>poi-ooxml</artifactId>
             <version>5.2.2</version>
         </dependency>
+
+        <!-- EKLENENLER: Hamcrest + JUnit 4 (step'lerde org.junit.Assert ve matchers için) -->
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
+            <version>2.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- Git branch/tarih bilgisini Maven property'lerine taşır -->
+            <plugin>
+                <groupId>pl.project13.maven</groupId>
+                <artifactId>git-commit-id-plugin</artifactId>
+                <version>4.9.10</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+
+        <!-- 1) Makinede Node+npx varsa -->
+        <profile>
+            <id>newman</id>
+            <build>
+                <plugins>
+
+                    <!-- Rapor klasörü -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>prepare-newman-dir</id>
+                                <phase>generate-resources</phase>
+                                <goals><goal>run</goal></goals>
+                                <configuration>
+                                    <target>
+                                        <mkdir dir="${newman.report.dir}"/>
+                                    </target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Newman (npx) + htmlextra -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>run-newman</id>
+                                <phase>verify</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>npx</executable>
+                                    <arguments>
+                                        <argument>newman</argument>
+                                        <argument>run</argument>
+                                        <argument>${newman.collection}</argument>
+
+                                        <argument>-e</argument>
+                                        <argument>${newman.environment}</argument>
+
+                                        <!-- Raporlayıcılar -->
+                                        <argument>-r</argument>
+                                        <argument>cli,htmlextra,json</argument>
+
+                                        <!-- HTML (htmlextra) -->
+                                        <argument>--reporter-htmlextra-export</argument>
+                                        <argument>${newman.report.dir}/supports.html</argument>
+                                        <argument>--reporter-htmlextra-title</argument>
+                                        <argument>Supports • ${git.branch} • ${maven.build.timestamp}</argument>
+                                        <argument>--reporter-htmlextra-browserTitle</argument>
+                                        <argument>Supports API</argument>
+                                        <argument>--reporter-htmlextra-showEnvironmentData</argument>
+                                        <argument>--reporter-htmlextra-logs</argument>
+
+                                        <!-- JSON -->
+                                        <argument>--reporter-json-export</argument>
+                                        <argument>${newman.report.dir}/supports.json</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- 2) Node yoksa: Node indir + newman + htmlextra -->
+        <profile>
+            <id>newman-embedded</id>
+            <build>
+                <plugins>
+
+                    <!-- Node & npm indir, newman ve htmlextra yükle -->
+                    <plugin>
+                        <groupId>com.github.eirslett</groupId>
+                        <artifactId>frontend-maven-plugin</artifactId>
+                        <version>1.12.1</version>
+                        <executions>
+                            <execution>
+                                <id>install-node</id>
+                                <goals><goal>install-node-and-npm</goal></goals>
+                                <configuration>
+                                    <nodeVersion>v20.14.0</nodeVersion>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>npm-install-newman</id>
+                                <goals><goal>npm</goal></goals>
+                                <configuration>
+                                    <arguments>install newman newman-reporter-htmlextra --no-save</arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Rapor klasörü -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <id>prepare-dir</id>
+                                <phase>generate-resources</phase>
+                                <goals><goal>run</goal></goals>
+                                <configuration>
+                                    <target><mkdir dir="${newman.report.dir}"/></target>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Newman'ı lokal node ile çalıştır -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>run-newman-embedded</id>
+                                <phase>verify</phase>
+                                <goals><goal>exec</goal></goals>
+                                <configuration>
+                                    <executable>node</executable>
+                                    <arguments>
+                                        <argument>${project.basedir}/node_modules/newman/bin/newman.js</argument>
+                                        <argument>run</argument>
+                                        <argument>${newman.collection}</argument>
+
+                                        <argument>-e</argument>
+                                        <argument>${newman.environment}</argument>
+
+                                        <argument>-r</argument>
+                                        <argument>cli,htmlextra,json</argument>
+
+                                        <argument>--reporter-htmlextra-export</argument>
+                                        <argument>${newman.report.dir}/supports.html</argument>
+                                        <argument>--reporter-htmlextra-title</argument>
+                                        <argument>Supports • ${git.branch} • ${maven.build.timestamp}</argument>
+                                        <argument>--reporter-htmlextra-browserTitle</argument>
+                                        <argument>Supports API</argument>
+                                        <argument>--reporter-htmlextra-showEnvironmentData</argument>
+                                        <argument>--reporter-htmlextra-logs</argument>
+
+                                        <argument>--reporter-json-export</argument>
+                                        <argument>${newman.report.dir}/supports.json</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
 </project>

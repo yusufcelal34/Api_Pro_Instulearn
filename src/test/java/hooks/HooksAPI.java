@@ -2,27 +2,63 @@ package hooks;
 
 import config_Requirements.ConfigLoader;
 import io.restassured.builder.RequestSpecBuilder;
+import io.restassured.http.ContentType;
 import io.restassured.specification.RequestSpecification;
-import utilities.API_Utilities.Authentication;
 
 public class HooksAPI {
+
     public static RequestSpecification spec;
-    static ConfigLoader configLoader = new ConfigLoader();
 
     public static void setUpApi(String userType) {
+        ConfigLoader config = ConfigLoader.getInstance();
+
+        String baseUrl = config.getApiConfig("base_url");
         String token;
-        if (userType.equals("admin")) {
-            token = Authentication.generateToken();
-        } else {
-            token = configLoader.getApiConfig("invalidToken");
+        String apiKey = config.getApiConfig("apiKey"); // config.yaml'da varsa
+
+        switch (userType.toLowerCase()) {
+            case "admin":
+            case "admintoken":
+                token = config.getApiConfig("adminToken");
+                break;
+            case "invalid":
+            case "invalidtoken":
+                token = config.getApiConfig("invalidToken");
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown user type: " + userType);
         }
 
-        spec = new RequestSpecBuilder()
-                .setBaseUri(configLoader.getApiConfig("base_url"))
-                .addHeader("Accept", "application/json")
-                .addHeader("x-api-key", "1234")
+        RequestSpecBuilder b = new RequestSpecBuilder()
+                .setBaseUri(baseUrl)
                 .addHeader("Authorization", "Bearer " + token)
-                .build();
+                .setContentType(ContentType.JSON);
+
+        if (apiKey != null && !apiKey.isBlank()) {
+            b.addHeader("x-api-key", apiKey);
+        }
+
+        spec = b.build();
+    }
+
+    public static RequestSpecification freshSpecNoAuth() {
+        ConfigLoader config = ConfigLoader.getInstance();
+        String baseUrl = config.getApiConfig("base_url");
+        String apiKey = config.getApiConfig("apiKey");
+
+        RequestSpecBuilder b = new RequestSpecBuilder()
+                .setBaseUri(baseUrl)
+                .setContentType(ContentType.JSON);
+
+        if (apiKey != null && !apiKey.isBlank()) {
+            b.addHeader("x-api-key", apiKey);
+        }
+
+        return b.build();
+    }
+
+    // Eski step'ler için alias
+    public static RequestSpecification freshSpec() {
+        return freshSpecNoAuth();
     }
 }
-

@@ -1,7 +1,7 @@
 Feature: As an administrator, I want to create a new course category record via an API connection.
 
   Scenario: Verify that a POST request to /api/addCategory with valid authorization and title returns status 200, remark
-  “success”, and message “Successfully Added.”
+  “success”, and message “Successfully Added.”...
 
     * The api user constructs the base url with the "admin" token.
     # Api kullanicisi "admin" token ile base urli olusturur
