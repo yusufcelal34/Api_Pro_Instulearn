@@ -1,4 +1,4 @@
-@DB
+@yusuf
 Feature: BACKEND JDBC TESTING
 
   # Bu feature, JDBC ile MySQL üzerinde doğrulama ve veri işleme senaryolarını içerir.
@@ -29,7 +29,7 @@ Feature: BACKEND JDBC TESTING
     * Database connection is closed
 
   # @DB32 — Departman bazında destek talepleri: durum kırılımı ve adetler
-  @DB31
+  @DB32
   Scenario: US32 Support tickets by department and status
     # Her departman (id & title) için ticket sayısı ve status dağılımı
     * Run grouping by department and status
@@ -46,7 +46,7 @@ Feature: BACKEND JDBC TESTING
     * Database connection is closed
 
   # @DB33 — Son 30 günde üretilmiş, aktif ve stoğu > 0 ürünler (yoksa yok bilgisini doğrula)
-  @DB31
+  @DB33
   Scenario: US33 Active in-stock products created in last 30 days
     # Ürün bulunamazsa test "informational note" olarak 'no product found' kabul edilir
     * Execute products filter query for last 30 days
