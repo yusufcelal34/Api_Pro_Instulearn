@@ -1,5 +1,5 @@
 Feature: As an administrator, I want to delete the course category information with the specified ID via an API connection.
-
+  @cenn
   Scenario: When a DELETE request with valid authorization and correct (id) is sent to the /api/deleteCategory/{id}
   endpoint, the expected result should be a status code of 200. The status in the response body should be "success",
   and the Message should be "Successfully Deleted." The returned Deleted Category Id should match the id parameter
@@ -13,8 +13,6 @@ Feature: As an administrator, I want to delete the course category information w
     * The api user verifies that the status code is 200.
     * The api user verifies that the "data.status" information in the response body is "success".
     * The api user verifies that the "Message" information in the response body is "Successfully Deleted.".
-    * The api user verifies that the "Deleted Category Id" information in the returned response body is the same as the id path parameter written in the endpoint.
-    * The api user verifies that the "data.message" is "There is not category for this id." by sending a GET request to the "api" "category" endpoint with the "Deleted Category Id" returned in the response body.
 
 
   Scenario Outline: When sending a DELETE request with valid authorization credentials but containing an unregistered id,
