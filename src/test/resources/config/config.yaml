@@ -1,13 +1,14 @@
 api:
   base_url: "https://qa.instulearn.com"
+
   adminEmail: "ramazan@instulearn.com"
+
+  adminEmail: "yusuf@instulearn.com"
+
   adminPassword: "Instu2025!"
   unauthorizedExceptionMessage: "status code: 401, reason phrase: Unauthorized"
-  invalidToken: "invalid"
+  invalidToken: "12285|AJkbePbbAATVHaHJl3GFQ2Xbrl0YOw54TKdcVEiDxxx"
+  adminToken: "12544|NWUhDu6K0YtFXEG6DciUmHtiBEiTBRTJiqwtMuOB"
 
-database:
-  host: "localhost"
-  port: 3306
-  URL:
-  USERNAME:
-  PASSWORD:
+  apiKey: "1234"
+  apiKeyHeader: "x-api-key"     # bazı sistemlerde 'api-key' ya da 'X-API-KEY' gerekebilir
