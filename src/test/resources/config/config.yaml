@@ -1,6 +1,7 @@
 api:
   base_url: "https://qa.instulearn.com"
   yusufadminEmail: "yusuf@instulearn.com"
+  adminEmail: "ramazan@instulearn.com"
   adminPassword: "Instu2025!"
   unauthorizedExceptionMessage: "status code: 401, reason phrase: Unauthorized"
   yusufinvalidToken: "12285|AJkbePbbAATVHaHJl3GFQ2Xbrl0YOw54TKdcVEiDxxx"
