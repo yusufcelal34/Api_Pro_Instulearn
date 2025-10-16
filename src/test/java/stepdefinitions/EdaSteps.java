@@ -194,21 +194,56 @@ public class EdaSteps {
         response.prettyPrint();
     }
 
+    @Given("E The api user sends a DELETE request and saves the returned response.")
+    public void tthe_api_user_sends_a_request_and_saves_the_returned_response() {
+        response = given()
+                .spec(HooksAPI.spec)
+                .contentType(ContentType.JSON)
+                .when()
+                .body(jsonObjectBody.toString())
+                .delete(API_Methods.fullPath);
 
+        response.prettyPrint();
+    }
 
 
     @Given("E The api user verifies the {int} {int}")
-    public void e_the_api_user_verifies_the(int id, int updatedId) {
-        Map<String, Object> root = response.jsonPath().getMap("$");   // cevabı kök Map olarak al
-        Object v = root.get("Updated Price Plans ID");                 // boşluklu key'i doğrudan çek
-        org.junit.Assert.assertNotNull("Updated Price Plans ID yok!", v);
-        int returnedId = (v instanceof Number) ? ((Number) v).intValue() : Integer.parseInt(v.toString());
+    public void ee_the_api_user_verifies_the(int id, int expectedId) {
+        Map<String, Object> root = response.jsonPath().getMap("$");  // JSON'ı Map olarak al
 
-// üçlü eşitlik
-        org.junit.Assert.assertEquals("Updated ID path ID ile eşit değil!", id, returnedId);
-        org.junit.Assert.assertEquals("Updated ID examples ID ile eşit değil!", updatedId, returnedId);
+        // Response'taki olası ID key'leri
+        String[] possibleKeys = {
+                "Updated Price Plans ID",
+                "Deleted Price Plan Id",
+                "Created Price Plan Id"
+        };
+
+        Object foundValue = null;
+        String foundKey = null;
+
+        // Gelen response'ta hangisi varsa onu bul
+        for (String key : possibleKeys) {
+            if (root.containsKey(key)) {
+                foundValue = root.get(key);
+                foundKey = key;
+                break;
+            }
+        }
+
+        // Hiçbiri yoksa test fail
+        org.junit.Assert.assertNotNull("Response'ta beklenen ID alanı bulunamadı!", foundValue);
+
+        // Tip dönüşümü
+        int returnedId = (foundValue instanceof Number)
+                ? ((Number) foundValue).intValue()
+                : Integer.parseInt(foundValue.toString().trim());
+
+        System.out.println("✅ Bulunan ID alanı: " + foundKey + " = " + returnedId);
+
+        // Eşitlik kontrolleri
+        org.junit.Assert.assertEquals("Path param ID ile dönülen ID eşit değil!", id, returnedId);
+        org.junit.Assert.assertEquals("Examples tablosundaki ID ile dönülen ID eşit değil!", expectedId, returnedId);
     }
-
     @Given("E The api user prepares a PATCH request that contains no data.")
     public void e_the_api_user_prepares_a_patch_request_that_contains_no_data() {
 
