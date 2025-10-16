@@ -33,17 +33,17 @@ public class YusufSteps extends YusufStepsBase {
         String selector = which.trim().toLowerCase();
         switch (selector) {
             case "valid":
-            case "admintoken":
+            case "yusufadmintoken":
             case "admin":
             case "admin token":
-                try { HooksAPI.setUpApi("admin"); } catch (Throwable t) { HooksAPI.setUpApi("admintoken"); }
-                System.out.println("Token : " + cfg.getApiConfig("adminToken"));
+                try { HooksAPI.setUpApi("admin"); } catch (Throwable t) { HooksAPI.setUpApi("yusufadmintoken"); }
+                System.out.println("Token : " + cfg.getApiConfig("yusufadmintoken"));
                 break;
             case "invalid":
-            case "invalidtoken":
+            case "yusufinvalidToken":
             case "invalid token":
-                try { HooksAPI.setUpApi("invalid"); } catch (Throwable t) { HooksAPI.setUpApi("invalidtoken"); }
-                System.out.println("Token : " + cfg.getApiConfig("invalidToken"));
+                try { HooksAPI.setUpApi("invalid"); } catch (Throwable t) { HooksAPI.setUpApi("yusufinvalidToken"); }
+                System.out.println("Token : " + cfg.getApiConfig("yusufinvalidToken"));
                 break;
             default:
                 HooksAPI.setUpApi(which);

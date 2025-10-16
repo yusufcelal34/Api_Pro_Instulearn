@@ -1,14 +1,11 @@
 api:
   base_url: "https://qa.instulearn.com"
-
+  yusufadminEmail: "yusuf@instulearn.com"
   adminEmail: "ramazan@instulearn.com"
-
-  adminEmail: "yusuf@instulearn.com"
-
   adminPassword: "Instu2025!"
   unauthorizedExceptionMessage: "status code: 401, reason phrase: Unauthorized"
-  invalidToken: "12285|AJkbePbbAATVHaHJl3GFQ2Xbrl0YOw54TKdcVEiDxxx"
-  adminToken: "12544|NWUhDu6K0YtFXEG6DciUmHtiBEiTBRTJiqwtMuOB"
+  yusufinvalidToken: "12285|AJkbePbbAATVHaHJl3GFQ2Xbrl0YOw54TKdcVEiDxxx"
+  yusufadminToken: "12544|NWUhDu6K0YtFXEG6DciUmHtiBEiTBRTJiqwtMuOB"
 
   apiKey: "1234"
   apiKeyHeader: "x-api-key"     # bazı sistemlerde 'api-key' ya da 'X-API-KEY' gerekebilir
