@@ -1,0 +1,11 @@
+id
+user_id
+webinar_id?
+department_id?
+title
+status
+status_order
+full_name
+role_name
+created_at
+updated_at
