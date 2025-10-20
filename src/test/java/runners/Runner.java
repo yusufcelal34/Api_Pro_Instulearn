@@ -11,14 +11,14 @@ import org.junit.runner.RunWith;
                 "html:target/default-cucumber-reports.html",
                 "json:target/json-reports/cucumber.json",
                 "junit:target/xml-report/cucumber.xml",
-                "rerun:target/failedRerun.txt"
+                "rerun:target/failedRerun.txt",
         },
-        features = "src/test/resources/features/api/feature/yusuf", // ← narrow the scope
+        features = "src/test/resources/features/api/feature", // ← narrow the scope
         glue = {"stepdefinitions","hooks","utilities"},
 
 
-        tags = "@api",
-        dryRun =true
+        tags = "@DB1",
+        dryRun =false
 
 )
 public class Runner {}
