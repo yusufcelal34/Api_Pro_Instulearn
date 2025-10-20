@@ -13,12 +13,12 @@ import org.junit.runner.RunWith;
                 "junit:target/xml-report/cucumber.xml",
                 "rerun:target/failedRerun.txt"
         },
-        features = "src/test/resources/features/api/feature/yusuf", // ← narrow the scope
+        features = "src/test/resources/features/api/feature/cennet", // ← narrow the scope
         glue = {"stepdefinitions","hooks","utilities"},
 
 
-        tags = "@api",
-        dryRun =true
+        tags = "@cenn",
+        dryRun =false
 
 )
 public class Runner {}

@@ -12,7 +12,7 @@ REM If you keep this script in project root, comment out next two lines.
 cd /d "%~dp0"
 for %%I in (.) do set CURRENTDIR=%%~nxI
 
-set COLL_DIR=src\test\java\PostmanCollections
+set COLL_DIR=src/test/java/PostmanCollections/cennet
 set REPORT_DIR=src\test\java\newman-reports
 
 if not exist "%REPORT_DIR%" mkdir "%REPORT_DIR%"
