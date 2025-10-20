@@ -10,7 +10,6 @@ REM ----------------------------------------------
 REM Script’in olduğu klasöre geç
 cd /d "%~dp0"
 
-<<<<<<< Updated upstream
 set "COLL_DIR=src\test\java\PostmanCollections"
 set "REPORT_DIR=src\test\java\newman-reports"
 
@@ -18,11 +17,6 @@ if not exist "%COLL_DIR%" (
   echo [ERROR] Koleksiyon klasoru yok: %COLL_DIR%
   exit /b 1
 )
-=======
-set COLL_DIR=src\test\java\PostmanCollections\yusuf
-
-set REPORT_DIR=src\test\java\newman-reports
->>>>>>> Stashed changes
 
 if not exist "%REPORT_DIR%" mkdir "%REPORT_DIR%"
 

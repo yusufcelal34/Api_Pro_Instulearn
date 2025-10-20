@@ -2,14 +2,19 @@ package stepdefinitions;
 
 import config_Requirements.ConfigLoader;
 import hooks.HooksAPI;
+import io.restassured.RestAssured;
 import io.restassured.builder.ResponseBuilder;
 import io.restassured.http.ContentType;
 import io.restassured.path.json.JsonPath;
 import io.restassured.response.Response;
 
+import io.restassured.specification.RequestSpecification;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -42,7 +47,7 @@ public class YusufStepsBase {
     // -------------------- Helper: HTTP Exception'dan Response çıkarma --------------------
     protected Response recoverResponseFromHttpResponseException(Throwable t) {
         try {
-            java.lang.reflect.Method m = t.getClass().getMethod("getResponse");
+            Method m = t.getClass().getMethod("getResponse");
             Object raw = m.invoke(t);
             if (raw instanceof Response) {
                 return (Response) raw;
@@ -52,7 +57,7 @@ public class YusufStepsBase {
         } catch (Throwable ignore) { }
 
         try {
-            java.lang.reflect.Field f = t.getClass().getDeclaredField("response");
+            Field f = t.getClass().getDeclaredField("response");
             f.setAccessible(true);
             Object raw = f.get(t);
             if (raw instanceof Response) return (Response) raw;
@@ -76,11 +81,11 @@ public class YusufStepsBase {
         try {
             int status = 0;
             try {
-                java.lang.reflect.Method getStatus = raw.getClass().getMethod("getStatus");
+                Method getStatus = raw.getClass().getMethod("getStatus");
                 Object s = getStatus.invoke(raw);
                 if (s instanceof Number) status = ((Number) s).intValue();
             } catch (NoSuchMethodException nsme) {
-                java.lang.reflect.Field f = raw.getClass().getDeclaredField("status");
+                Field f = raw.getClass().getDeclaredField("status");
                 f.setAccessible(true);
                 Object s = f.get(raw);
                 if (s instanceof Number) status = ((Number) s).intValue();
@@ -88,30 +93,30 @@ public class YusufStepsBase {
 
             String contentType = null;
             try {
-                java.lang.reflect.Method getCt = raw.getClass().getMethod("getContentType");
+                Method getCt = raw.getClass().getMethod("getContentType");
                 Object ct = getCt.invoke(raw);
                 contentType = (ct != null) ? ct.toString() : null;
             } catch (Throwable ignore) {}
 
             Object data;
             try {
-                java.lang.reflect.Method getData = raw.getClass().getMethod("getData");
+                Method getData = raw.getClass().getMethod("getData");
                 data = getData.invoke(raw);
             } catch (NoSuchMethodException nsme) {
-                java.lang.reflect.Field f = raw.getClass().getDeclaredField("data");
+                Field f = raw.getClass().getDeclaredField("data");
                 f.setAccessible(true);
                 data = f.get(raw);
             }
 
-            String body;
+            String body = "";
             if (data == null) {
                 body = "";
             } else if (data instanceof String) {
                 body = (String) data;
             } else if (data instanceof byte[]) {
-                body = new String((byte[]) data, java.nio.charset.StandardCharsets.UTF_8);
+                body = new String((byte[]) data, StandardCharsets.UTF_8);
             } else {
-                body = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(data);
+                
                 if (contentType == null) contentType = "application/json";
             }
 
@@ -128,7 +133,7 @@ public class YusufStepsBase {
 
     protected int extractStatusCodeSafely(Throwable t, int fallback) {
         try {
-            java.lang.reflect.Method m = t.getClass().getMethod("getStatusCode");
+            Method m = t.getClass().getMethod("getStatusCode");
             Object o = m.invoke(t);
             if (o instanceof Number) return ((Number) o).intValue();
         } catch (Throwable ignore) {}
@@ -264,7 +269,7 @@ public class YusufStepsBase {
 
     protected boolean isPostAllowed(String path) {
         try {
-            Response r = io.restassured.RestAssured.given().spec(HooksAPI.spec).when().options(path);
+            Response r = RestAssured.given().spec(HooksAPI.spec).when().options(path);
             String allow = r.getHeader("Allow");
             System.out.println("OPTIONS " + path + " -> " + r.getStatusCode() + " | Allow: " + allow);
             return allow != null && Arrays.stream(allow.split(","))
@@ -278,7 +283,7 @@ public class YusufStepsBase {
 
     protected boolean isDeleteAllowed(String path) {
         try {
-            Response r = io.restassured.RestAssured.given().spec(HooksAPI.spec).when().options(path);
+            Response r = RestAssured.given().spec(HooksAPI.spec).when().options(path);
             String allow = r.getHeader("Allow");
             System.out.println("OPTIONS " + path + " -> " + r.getStatusCode() + " | Allow: " + allow);
             return allow != null && Arrays.stream(allow.split(","))
@@ -292,7 +297,7 @@ public class YusufStepsBase {
 
     // -------------------- Helper: POST türleri --------------------
     protected Response postJson(String path, String jsonBody) {
-        Response r = io.restassured.RestAssured.given()
+        Response r = RestAssured.given()
                 .spec(HooksAPI.spec)
                 .redirects().follow(false)
                 .accept(ContentType.JSON)
@@ -307,7 +312,7 @@ public class YusufStepsBase {
     }
 
     protected Response postForm(String path, JSONObject body) {
-        io.restassured.specification.RequestSpecification req = io.restassured.RestAssured.given()
+        RequestSpecification req = RestAssured.given()
                 .spec(HooksAPI.spec)
                 .redirects().follow(false)
                 .accept(ContentType.JSON)
@@ -327,7 +332,7 @@ public class YusufStepsBase {
     }
 
     protected Response postMultipart(String path, JSONObject body) {
-        io.restassured.specification.RequestSpecification req = io.restassured.RestAssured.given()
+        RequestSpecification req = RestAssured.given()
                 .spec(HooksAPI.spec)
                 .redirects().follow(false)
                 .accept(ContentType.JSON)
@@ -357,7 +362,7 @@ public class YusufStepsBase {
 
     protected Response postOverrideDelete(String path) {
         // Birçok back-end _method=DELETE veya X-HTTP-Method-Override kabul eder
-        return io.restassured.RestAssured.given()
+        return RestAssured.given()
                 .spec(HooksAPI.spec)
                 .redirects().follow(false)
                 .accept(ContentType.JSON)
@@ -455,7 +460,7 @@ public class YusufStepsBase {
         };
         for (String p : htmlProbes) {
             try {
-                Response r = io.restassured.RestAssured.given().spec(HooksAPI.spec).when().get(p);
+                Response r = RestAssured.given().spec(HooksAPI.spec).when().get(p);
                 System.out.println("GET " + p + " -> " + r.getStatusCode() + " | CT=" + r.getHeader("Content-Type"));
                 if (r.getStatusCode() == 200) {
                     List<Integer> ids = parseDeptIdsFromHtml(r.getBody().asString());
@@ -474,7 +479,7 @@ public class YusufStepsBase {
 
         for (String p : jsonCandidates) {
             try {
-                Response r = io.restassured.RestAssured.given().spec(HooksAPI.spec).when().get(p);
+                Response r = RestAssured.given().spec(HooksAPI.spec).when().get(p);
                 System.out.println("GET " + p + " -> " + r.getStatusCode());
                 if (r.getStatusCode() != 200) continue;
                 String ct = String.valueOf(r.getHeader("Content-Type")).toLowerCase(Locale.ROOT);

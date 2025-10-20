@@ -21,6 +21,15 @@ import java.sql.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
+// ===== Allure ekleri =====
+import io.qameta.allure.Allure;
+import io.qameta.allure.Attachment;
+
+// ===== (opsiyonel) WebDriver screenshot için =====
+import org.openqa.selenium.OutputType;
+import org.openqa.selenium.TakesScreenshot;
+import org.openqa.selenium.WebDriver;
+import utilities.API_Utilities.Driver;
 
 public class YusufSteps extends YusufStepsBase {
 
@@ -33,17 +42,17 @@ public class YusufSteps extends YusufStepsBase {
         String selector = which.trim().toLowerCase();
         switch (selector) {
             case "valid":
-            case "yusufadmintoken":
+            case "admintoken":
             case "admin":
             case "admin token":
-                try { HooksAPI.setUpApi("admin"); } catch (Throwable t) { HooksAPI.setUpApi("yusufadmintoken"); }
-                System.out.println("Token : " + cfg.getApiConfig("yusufadmintoken"));
+                try { HooksAPI.setUpApi("admin"); } catch (Throwable t) { HooksAPI.setUpApi("admintoken"); }
+                System.out.println("Token : " + cfg.getApiConfig("adminToken"));
                 break;
             case "invalid":
-            case "yusufinvalidToken":
+            case "invalidtoken":
             case "invalid token":
-                try { HooksAPI.setUpApi("invalid"); } catch (Throwable t) { HooksAPI.setUpApi("yusufinvalidToken"); }
-                System.out.println("Token : " + cfg.getApiConfig("yusufinvalidToken"));
+                try { HooksAPI.setUpApi("invalid"); } catch (Throwable t) { HooksAPI.setUpApi("invalidtoken"); }
+                System.out.println("Token : " + cfg.getApiConfig("invalidToken"));
                 break;
             default:
                 HooksAPI.setUpApi(which);
@@ -120,6 +129,9 @@ public class YusufSteps extends YusufStepsBase {
             }
 
             response = req.when().get(path);
+            // --- Allure ekleri ---
+            attachResponseAll("GET", path, response);
+            attachHtmlScreenshotIfPossible("GET HTML Screenshot (if any)", response);
 
             if (!isJson(response) && path.contains("{id}")) {
                 List<String> alt = Arrays.asList(
@@ -136,6 +148,8 @@ public class YusufSteps extends YusufStepsBase {
                             .pathParam("id", ctx.get("pathId"))
                             .when().get(p);
                     System.out.println("Fallback GET " + p + " -> " + tryR.getStatusCode() + " CT=" + tryR.getContentType());
+                    attachResponseAll("GET (fallback)", p, tryR);
+                    attachHtmlScreenshotIfPossible("GET Fallback HTML Screenshot (if any)", tryR);
                     if (isJson(tryR)) {
                         response = tryR;
                         path = p;
@@ -147,7 +161,9 @@ public class YusufSteps extends YusufStepsBase {
         } catch (Throwable t) {
             if ("io.restassured.internal.http.HttpResponseException".equals(t.getClass().getName())) {
                 response = recoverResponseFromHttpResponseException(t);
+                attachResponseAll("GET (recovered)", path, response);
             } else {
+                Allure.addAttachment("GET Error", String.valueOf(t));
                 throw new RuntimeException("GET isteğinde beklenmeyen hata: " + t, t);
             }
         }
@@ -183,6 +199,11 @@ public class YusufSteps extends YusufStepsBase {
                     .compile("(?is)<title>(.*?)</title>")
                     .matcher(body == null ? "" : body);
             String title = m.find() ? m.group(1).trim() : "";
+            // --- Allure ekleri ---
+            attachHtml("HTML Body (snippet)", body);
+            attachText("HTML Title", title);
+            attachHtmlScreenshotIfPossible("HTML Title Check Screenshot", response);
+
             assertTrue("HTML title beklentiyi karşılamıyor! actual='" + title + "'",
                     title.toLowerCase(Locale.ROOT).contains(expected.toLowerCase(Locale.ROOT)));
         }
@@ -210,6 +231,9 @@ public class YusufSteps extends YusufStepsBase {
                         (body == null ? "" : body.substring(0, Math.min(200, body.length()))),
                 looksJson);
 
+        // --- Allure ekleri ---
+        attachJson("Response JSON (remark check)", body);
+
         Object remark = response.jsonPath().get("remark");
         assertNotNull("remark alanı yok!", remark);
         assertEquals("success", String.valueOf(remark));
@@ -223,12 +247,14 @@ public class YusufSteps extends YusufStepsBase {
         try { remark = jp.get("remark"); } catch (Throwable ignore) {}
 
         if (remark != null) {
+            attachText("remark(actual)", String.valueOf(remark));
             assertEquals("failed", String.valueOf(remark));
             return;
         }
 
         Map<String, Object> errors = null;
         try { errors = jp.getMap("errors"); } catch (Throwable ignore) {}
+        if (errors != null) attachJson("errors", new JSONObject(errors).toString());
         assertNotNull("Ne 'remark' var ne de 'errors' objesi var; beklenen failed yapısı gelmedi.", errors);
         assertFalse("Errors boş geldi, failed sayamayız.", errors.isEmpty());
     }
@@ -248,8 +274,10 @@ public class YusufSteps extends YusufStepsBase {
         }
 
         if (looksJson && body != null && body.trim().length() > 0) {
+            attachJson("Response JSON (body_field_equals)", body);
             Object raw = response.jsonPath().get(jsonPath);
             String actual = (raw == null) ? "null" : String.valueOf(raw);
+            attachText("Actual (" + jsonPath + ")", actual);
             assertEquals("Body alanı beklenenden farklı! path=" + jsonPath, expected, actual);
             return;
         }
@@ -266,6 +294,7 @@ public class YusufSteps extends YusufStepsBase {
             ok = true;
         }
 
+        if (!ok) attachText("Body (plain)", body);
         assertTrue("Beklenen ifade bulunamadı. CT=" + ct + " | Body='" + body + "' | Expected='" + expected + "'", ok);
     }
 
@@ -314,6 +343,7 @@ public class YusufSteps extends YusufStepsBase {
             } catch (Throwable ignore) {}
         }
         assertNotNull("İlk öğe bulunamadı (data/supports)!", first);
+        attachJson("First item (for inspection)", new JSONObject(first).toString());
 
         for (String rawKey : table.asList()) {
             String key = rawKey.trim();
@@ -406,14 +436,17 @@ public class YusufSteps extends YusufStepsBase {
         for (String p : postable) {
             Response r1 = postJson(p, body);
             logPost("JSON", p, r1);
+            attachResponseAll("POST JSON", p, r1);
             if (isGood(r1)) { best = r1; lastEndpointTried = p; break; }
 
             Response r2 = postForm(p, requestBody);
             logPost("FORM-URLENC", p, r2);
+            attachResponseAll("POST FORM", p, r2);
             if (isGood(r2)) { best = r2; lastEndpointTried = p; break; }
 
             Response r3 = postMultipart(p, requestBody);
             logPost("MULTIPART", p, r3);
+            attachResponseAll("POST MULTIPART", p, r3);
             if (isGood(r3)) { best = r3; lastEndpointTried = p; break; }
         }
 
@@ -423,6 +456,7 @@ public class YusufSteps extends YusufStepsBase {
             if (!postable.isEmpty()) {
                 best = postJson(postable.get(0), body);
                 lastEndpointTried = postable.get(0);
+                attachResponseAll("POST fallback JSON", lastEndpointTried, best);
             }
         }
 
@@ -456,6 +490,7 @@ public class YusufSteps extends YusufStepsBase {
             if (p.contains("{id}")) p = p.replace("{id}", String.valueOf(pid));
             if (isDeleteAllowed(p)) {
                 Response r = given().spec(HooksAPI.spec).when().delete(p);
+                attachResponseAll("DELETE", p, r);
                 System.out.println("DELETE " + p + " -> " + (r==null? "null" : r.getStatusCode()));
                 best = r; used = p;
                 break;
@@ -467,6 +502,7 @@ public class YusufSteps extends YusufStepsBase {
                 String p = pRaw;
                 if (p.contains("{id}")) p = p.replace("{id}", String.valueOf(pid));
                 Response r = postOverrideDelete(p);
+                attachResponseAll("POST(_method=DELETE)", p, r);
                 System.out.println("POST(_method=DELETE) " + p + " -> " + (r==null? "null" : r.getStatusCode()));
                 if (r != null && (r.getStatusCode()/100 == 2 || r.getStatusCode()==405)) {
                     best = r; used = p; break;
@@ -481,6 +517,7 @@ public class YusufSteps extends YusufStepsBase {
                     .setContentType("application/json").build();
             used = p0;
             System.out.println("No deletable endpoint; faking 405 for " + used);
+            attachResponseAll("DELETE (fake 405)", used, best);
         }
 
         response = best;
@@ -508,11 +545,14 @@ public class YusufSteps extends YusufStepsBase {
             response = req.when()
                     .post(path)
                     .andReturn();
+            attachResponseAll("POST", path, response);
 
         } catch (Throwable t) {
             if ("io.restassured.internal.http.HttpResponseException".equals(t.getClass().getName())) {
                 response = recoverResponseFromHttpResponseException(t);
+                attachResponseAll("POST (recovered)", path, response);
             } else {
+                Allure.addAttachment("POST Error", String.valueOf(t));
                 throw new RuntimeException("POST isteğinde beklenmeyen hata: " + t, t);
             }
         }
@@ -532,6 +572,8 @@ public class YusufSteps extends YusufStepsBase {
                 .body(payload())
                 .when()
                 .put(path);
+        attachResponseAll("PUT", path, response);
+
         lastEndpointTried = path;
         safePretty(response);
     }
@@ -554,11 +596,14 @@ public class YusufSteps extends YusufStepsBase {
             response = req.when()
                     .request(Method.PATCH, path)
                     .andReturn();
+            attachResponseAll("PATCH", path, response);
 
         } catch (Throwable t) {
             if ("io.restassured.internal.http.HttpResponseException".equals(t.getClass().getName())) {
                 response = recoverResponseFromHttpResponseException(t);
+                attachResponseAll("PATCH (recovered)", path, response);
             } else {
+                Allure.addAttachment("PATCH Error", String.valueOf(t));
                 throw new RuntimeException("PATCH isteğinde beklenmeyen hata: " + t, t);
             }
         }
@@ -589,11 +634,14 @@ public class YusufSteps extends YusufStepsBase {
             response = req.when()
                     .request(Method.DELETE, path)
                     .andReturn();
+            attachResponseAll("DELETE", path, response);
 
         } catch (Throwable t) {
             if ("io.restassured.internal.http.HttpResponseException".equals(t.getClass().getName())) {
                 response = recoverResponseFromHttpResponseException(t);
+                attachResponseAll("DELETE (recovered)", path, response);
             } else {
+                Allure.addAttachment("DELETE Error", String.valueOf(t));
                 throw new RuntimeException("DELETE isteğinde beklenmeyen hata: " + t, t);
             }
         }
@@ -610,6 +658,7 @@ public class YusufSteps extends YusufStepsBase {
         Response r = given().spec(HooksAPI.spec).when().options(path);
         System.out.println("OPTIONS " + path + " -> " + r.getStatusCode());
         System.out.println("Allow: " + r.getHeader("Allow"));
+        attachResponseAll("OPTIONS", path, r);
         safePretty(r);
     }
 
@@ -628,12 +677,14 @@ public class YusufSteps extends YusufStepsBase {
                 System.out.println("GET " + p + " -> " + r.getStatusCode() + " | " + r.getStatusLine());
                 String ct = r.getHeader("Content-Type");
                 System.out.println("Content-Type: " + ct);
+                attachResponseAll("DISCOVER-DOC", p, r);
                 safePretty(r);
                 if (r.getStatusCode() == 200 && ct != null && ct.toLowerCase().contains("json")) {
                     System.out.println(">>> OpenAPI/Swagger JSON likely at: " + p);
                 }
             } catch (Throwable t) {
                 System.out.println("GET " + p + " threw: " + t);
+                Allure.addAttachment("Doc discovery error", String.valueOf(t));
             }
             System.out.println("------------------------------------------------------------");
         }
@@ -645,7 +696,9 @@ public class YusufSteps extends YusufStepsBase {
         Response r = given().spec(HooksAPI.spec).when().get(path);
         System.out.println("GET " + path + " -> " + r.getStatusCode() + " | " + r.getStatusLine());
         System.out.println("Content-Type: " + r.getHeader("Content-Type"));
+        attachResponseAll("RAW GET", path, r);
         safePretty(r);
+        attachHtmlScreenshotIfPossible("RAW HTML Screenshot (if any)", r);
     }
 
     @When("diagnose addSupport endpoints")
@@ -667,6 +720,8 @@ public class YusufSteps extends YusufStepsBase {
         if (response != null) {
             System.out.println(">>> Last status: " + response.getStatusCode());
         }
+        attachText("Last endpoint", String.valueOf(lastEndpointTried));
+        if (response != null) attachText("Last status", String.valueOf(response.getStatusCode()));
     }
 
     // -------------------- DEPARTMENT RESOLVER --------------------
@@ -688,7 +743,7 @@ public class YusufSteps extends YusufStepsBase {
         if (current != null && validIds.contains(current)) {
             System.out.println("Department id already present in body and VALID: " + current);
             return;
-        } else if (current != null) {
+        } else {
             System.out.println("Department id already present in body but INVALID: " + current + " -> overriding");
         }
 
@@ -738,7 +793,7 @@ public class YusufSteps extends YusufStepsBase {
             int code = response.getStatusCode();
             assertTrue("HTTP status farklı! expected one of [" + a + "," + b + "] but was: " + code, code == a || code == b);
         } else {
-            System.out.println("[SKIP] last status " + lastStatus + " != " + s1 + " and " + lastStatus + " != " + s2 + " -> status assert atlandı");
+            System.out.println("[SKIP] last status " + lastStatus + " != " + s1 + " and " + lastStatus + " != " + s2 +" -> status assert atlandı");
         }
     }
 
@@ -1147,7 +1202,7 @@ public class YusufSteps extends YusufStepsBase {
         } else {
             System.out.println("[US31 INFO] Veri bulunamadı veya min_rating null (hiç yorum olmayabilir).");
         }
-}
+    }
     // ======================================================
     // US32 — Support tickets by department and status
     // Feature adımı: * Run grouping by department and status
@@ -1323,5 +1378,81 @@ public class YusufSteps extends YusufStepsBase {
             connection = null;
         }
     }
-}
 
+    // ========================================================================
+    // -------------------- ALLURE ATTACHMENT YARDIMCILARI --------------------
+    // ========================================================================
+
+    @Attachment(value = "{name}", type = "text/plain")
+    public String attachText(String name, String content) {
+        return content == null ? "" : content;
+    }
+
+    @Attachment(value = "{name}", type = "application/json", fileExtension = ".json")
+    public byte[] attachJson(String name, String json) {
+        if (json == null) json = "";
+        return json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @Attachment(value = "{name}", type = "text/html", fileExtension = ".html")
+    public byte[] attachHtml(String name, String html) {
+        if (html == null) html = "";
+        return html.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    @Attachment(value = "{name}", type = "image/png")
+    public byte[] attachPng(String name, byte[] png) {
+        return png;
+    }
+
+    /** Response'u Allure'a status, headers, body olarak ekler */
+    public void attachResponseAll(String verb, String path, Response r) {
+        try {
+            if (r == null) {
+                attachText(verb + " " + path + " (null response)", "");
+                return;
+            }
+            attachText(verb + " " + path + " | Status", r.getStatusLine());
+            attachText(verb + " " + path + " | Headers", String.valueOf(r.getHeaders()));
+
+            String ct = String.valueOf(r.getContentType());
+            String body = "";
+            try { body = r.getBody() == null ? "" : r.getBody().asString(); } catch (Throwable ignore) {}
+
+            if (ct != null && ct.toLowerCase(Locale.ROOT).contains("json")) {
+                attachJson(verb + " " + path + " | Body(JSON)", body);
+            } else if (ct != null && ct.toLowerCase(Locale.ROOT).contains("html")) {
+                attachHtml(verb + " " + path + " | Body(HTML)", body);
+            } else {
+                attachText(verb + " " + path + " | Body(text)", body);
+            }
+        } catch (Throwable t) {
+            Allure.addAttachment("attachResponseAll error", String.valueOf(t));
+        }
+    }
+
+    /** Manuel screenshot almak için: HooksAPI ya da Driver üzerinden */
+    public void attachSeleniumScreenshot(String name) {
+        try {
+            WebDriver drv = Driver.getDriver();
+            if (drv != null && drv instanceof TakesScreenshot) {
+                byte[] png = ((TakesScreenshot) drv).getScreenshotAs(OutputType.BYTES);
+                attachPng(name, png);
+            } else {
+                attachText(name + " (info)", "WebDriver yok veya TakesScreenshot desteklemiyor.");
+            }
+        } catch (Throwable t) {
+            attachText(name + " (error)", "Screenshot alınamadı: " + t.getMessage());
+        }
+    }
+
+    /** Response HTML ise ve driver da varsa, sayfanın screenshot'unu dene */
+    public void attachHtmlScreenshotIfPossible(String name, Response r) {
+        try {
+            String ct = String.valueOf(r.getContentType()).toLowerCase(Locale.ROOT);
+            if (ct.contains("html")) {
+                attachSeleniumScreenshot(name);
+            }
+        } catch (Throwable ignore) {}
+    }
+}
