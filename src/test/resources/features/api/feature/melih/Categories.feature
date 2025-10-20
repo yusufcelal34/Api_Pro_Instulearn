@@ -1,5 +1,7 @@
 Feature: As an administrator, I want to access course categories via an API connection.
 
+  Scenario: TC01
+
   Scenario Outline: When a GET request is sent to the /api/categories endpoint with valid authorization,
   the response status code should be 200, the remark should be “success”, and the information of id(x)
   (slug, parent_id, icon, order, title, category_id, locale) should be validated.
