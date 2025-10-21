@@ -1,4 +1,4 @@
-@eda
+@eda @FullStartAll
 Feature: US_011: As an administrator I want to be able to access course price plans via API connection.
 
   Scenario: AC_01> adminToken / 200 / "success"

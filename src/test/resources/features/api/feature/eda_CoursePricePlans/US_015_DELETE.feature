@@ -1,4 +1,4 @@
-@eda
+@eda @FullStartAll
 Feature: US_015 As an administrator, I want to be able to delete course price plan information with the specified id number via API connection.
 
   Scenario: AC_01> adminToken / invalidId / deleteRuquest / 200 / "success" / "Successfully Deleted."

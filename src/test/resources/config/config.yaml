@@ -1,6 +1,10 @@
 api:
   base_url: "https://qa.instulearn.com"
-  adminEmail: "cennet@instulearn.com"
+  cennetadminEmail: "cennet@instulearn.com"
+
+  yusufadminEmail: "yusuf@instulearn.com"
+  ramazanadminEmail: "ramazan@instulearn.com"
+
   adminPassword: "Instu2025!"
   unauthorizedExceptionMessage: "status code: 401, reason phrase: Unauthorized"
   invalidtokenn: "12285|AJkbePbbAATVHaHJl3GFQ2Xbrl0YOw54TKdcVEiDxxx"

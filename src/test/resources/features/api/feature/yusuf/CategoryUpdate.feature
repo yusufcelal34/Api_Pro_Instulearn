@@ -1,4 +1,4 @@
-@yusuf
+@yusuf @FullStartAll
 Feature: US-54 Update Support
 
   Background:

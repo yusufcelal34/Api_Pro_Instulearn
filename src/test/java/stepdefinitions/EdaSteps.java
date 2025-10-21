@@ -231,7 +231,7 @@ public class EdaSteps {
         }
 
         // Hiçbiri yoksa test fail
-        org.junit.Assert.assertNotNull("Response'ta beklenen ID alanı bulunamadı!", foundValue);
+        Assert.assertNotNull("Response'ta beklenen ID alanı bulunamadı!", foundValue);
 
         // Tip dönüşümü
         int returnedId = (foundValue instanceof Number)
@@ -241,8 +241,8 @@ public class EdaSteps {
         System.out.println("✅ Bulunan ID alanı: " + foundKey + " = " + returnedId);
 
         // Eşitlik kontrolleri
-        org.junit.Assert.assertEquals("Path param ID ile dönülen ID eşit değil!", id, returnedId);
-        org.junit.Assert.assertEquals("Examples tablosundaki ID ile dönülen ID eşit değil!", expectedId, returnedId);
+        Assert.assertEquals("Path param ID ile dönülen ID eşit değil!", id, returnedId);
+        Assert.assertEquals("Examples tablosundaki ID ile dönülen ID eşit değil!", expectedId, returnedId);
     }
     @Given("E The api user prepares a PATCH request that contains no data.")
     public void e_the_api_user_prepares_a_patch_request_that_contains_no_data() {
