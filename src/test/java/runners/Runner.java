@@ -17,6 +17,9 @@ import org.junit.runner.RunWith;
         features = "src/test/resources/features/api/feature",
         glue = {"stepdefinitions","hooks","utilities"},
 
+        tags = "@cenn",
+        dryRun =false
+
 
         tags = "@FullStartAll",
         dryRun =false,

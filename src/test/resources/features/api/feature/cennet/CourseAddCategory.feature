@@ -1,4 +1,4 @@
-@cenn
+
 Feature: US08 As an administrator, I want to create a new course category record via an API connection.
 
   # Amaç: /api/addCategory ile yeni kategori ekleme ve eklenen kaydı /api/category/{id} ile doğrulama
@@ -33,7 +33,7 @@ Feature: US08 As an administrator, I want to create a new course category record
     Then status is 422
     And body field "message" is "The title field is required."
     # Geçerli token + boş body gönderildiğinde 422 ve zorunlu alan mesajı beklenir.
-  @US08 @AC03 @cenn
+
   Scenario: Verify that POST /api/addCategory with invalid token and valid title returns 401 and message "Unauthenticated."
     Given use token "invalid"
     And path params "api/addCategory"
@@ -44,7 +44,7 @@ Feature: US08 As an administrator, I want to create a new course category record
     And body field "message" is "Unauthenticated."
     # Geçersiz token ile istek atıldığında 401 ve "Unauthenticated." beklenir.
   # (İsteğe bağlı alternatif) Eğer sabit bir id ile GET doğrulaması da isteniyorsa aşağıdaki Outline'ı kullanabilirsin:
-  @US08 @optional
+
   Scenario Outline: Verify existing category by id with GET /api/category/{id}
     Given use token "admin"
     And path id is <id>

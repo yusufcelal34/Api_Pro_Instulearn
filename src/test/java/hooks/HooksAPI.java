@@ -47,7 +47,7 @@ public class HooksAPI {
                 break;
             case "invalid":
             case "invalidtoken":
-                token = config.getApiConfig("invalidToken");
+                token = config.getApiConfig("invalidtoken");
                 break;
             default:
                 throw new IllegalArgumentException("Unknown user type: " + userType);

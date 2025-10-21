@@ -10,6 +10,9 @@ REM ----------------------------------------------
 REM Script’in olduğu klasöre geç
 cd /d "%~dp0"
 
+set COLL_DIR=src/test/java/PostmanCollections/cennet
+set REPORT_DIR=src\test\java\newman-reports
+
 set "COLL_DIR=src\test\java\PostmanCollections"
 set "REPORT_DIR=src\test\java\newman-reports"
 
