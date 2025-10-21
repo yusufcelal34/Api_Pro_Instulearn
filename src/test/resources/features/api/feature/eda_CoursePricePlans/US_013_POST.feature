@@ -1,4 +1,4 @@
-@eda
+@eda @FullStartAll
 Feature: US_13 As an administrator I want to be able to create a new course price plan record via API connection.
 
 

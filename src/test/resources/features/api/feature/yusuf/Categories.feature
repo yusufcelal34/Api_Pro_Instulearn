@@ -1,4 +1,4 @@
-@yusuf
+@yusuf @FullStartAll
 Feature: US-51 Supports List & Field Validation
 
   Background:

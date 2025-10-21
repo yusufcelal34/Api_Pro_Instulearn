@@ -1,4 +1,4 @@
-@yusuf
+@yusuf @FullStartAll
 Feature: US-52 Get Support by ID
 
   Background:

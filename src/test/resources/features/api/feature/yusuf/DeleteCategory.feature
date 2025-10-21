@@ -1,4 +1,4 @@
-@yusuf
+@yusuf @FullStartAll
 Feature: US-55 Delete Support
 
   Background:

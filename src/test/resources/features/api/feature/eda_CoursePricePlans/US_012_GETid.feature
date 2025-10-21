@@ -1,4 +1,4 @@
-@eda
+@eda @FullStartAll
 Feature: US_12 As an administrator, I should be able to access the detailed information
   of the course price plan with the specified id number via the API connection.
 

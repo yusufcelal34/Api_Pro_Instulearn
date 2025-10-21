@@ -1,3 +1,4 @@
+@FullStartAll
 Feature: As an administrator, I want to be able to create a new blog post via API connection.
 
   Scenario:  POST body containing valid authorization information and correct data (title, category_id, description, content) is sent to the /api/addBlog endpoint, it must be verified that the returned status code is 200, the remark information in the response body is "success",

@@ -18,7 +18,7 @@ import org.junit.runner.RunWith;
         glue = {"stepdefinitions","hooks","utilities"},
 
 
-        tags = "@cennetdb",
+        tags = "@FullStartAll",
         dryRun =false,
         monochrome = true
 
