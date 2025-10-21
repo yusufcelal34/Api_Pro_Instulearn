@@ -1,4 +1,4 @@
-@eda
+@eda @FullStartAll
 Feature: US_014 As an administrator, I want to be able to update the information
   of the course price plan with the specified id number via API connection.
 
@@ -31,7 +31,7 @@ Feature: US_014 As an administrator, I want to be able to update the information
     * E The api user verifies that the "data.message" information in the response body is "There is not ticket for this id.".
 
 
-  Scenario: AC_04 adminToken / id no data / patchRequest / 203 / "failed" / "No id"
+  Scenario: AC_04> adminToken / id no data / patchRequest / 203 / "failed" / "No id"
     * E The api user constructs the base url with the "admin" token.
     * E The api user sets "api/updatePricePlan" path parameters.
     * E The api user prepares a PATCH request containing the "ÇOK UYKUM GELDİ" information to send to the api updateCategory endpoint.
@@ -40,8 +40,7 @@ Feature: US_014 As an administrator, I want to be able to update the information
     * E The api user verifies that the "remark" information in the response body is "failed".
     * E The api user verifies that the "data.message" information in the response body is "No id".
 
-  Scenario: AC_05 invalidToken / validId / 401 / "Unauthenticated."
-  and the message information in the response body is “Unauthenticated.”
+  Scenario: AC_05> invalidToken / validId / 401 / "Unauthenticated."
     * E The api user constructs the base url with the "invalid" token.
     * E The api user sets "api/updatePricePlan/280" path parameters.
     * E The api user prepares a PATCH request containing the "ÇOK UYKUM GELDİ" information to send to the api updateCategory endpoint.

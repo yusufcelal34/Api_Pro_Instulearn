@@ -1,4 +1,4 @@
-@yusuf
+@yusuf @FullStartAll
 Feature: US-53 Support Add
 
   Background:
