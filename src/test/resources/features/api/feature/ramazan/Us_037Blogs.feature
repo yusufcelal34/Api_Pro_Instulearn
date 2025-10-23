@@ -92,15 +92,15 @@ and the message information is "No id".
   Scenario Outline: When a GET request is sent to the /api/blog/{id} endpoint with invalid token authorization information and correct data (id), it should be verified that the status
   code returned is 401 and the message in the response body is “Unauthenticated.”.
 
-    * The api user constructs the base url with the "invalid" token.
+    * Rekare The api user constructs the base url with the "invalid" token.
     # Api kullanicisi "invalid" token ile base urli olusturur
-    * The api user sets "api/blog/<id>" path parameters.
+    * Rekare The api user sets "api/blog/<id>" path parameters.
     # Api kullanicisi "api/categories" path parametrelerini olusturur
-    * The api user sends a GET request and saves the returned response.
+    * Rekare The api user sends a GET request and saves the returned response.
     # Api kullanicisi GET request gonderir ve donen responsei kaydeder
-    * The api user36 verifies that the status code is 401
+    * Rekare The api user verifies that the status code is 401.
     # Api kullanicisi status codeun 401 oldugunu dogrular
-    * The api user36 verifies that the "message" information in the response body is "Unauthenticated."
+    * Rekare The api user verifies that the "message" information in the response body is "Unauthenticated.".
     # Api kullanicisi response bodydeki message bilgisinin "Unauthenticated." oldugunu dogrular
 
      Examples:

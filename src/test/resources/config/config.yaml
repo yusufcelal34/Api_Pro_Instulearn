@@ -4,7 +4,7 @@ api:
   adminPassword: "Instu2025!"
   unauthorizedExceptionMessage: "status code: 401, reason phrase: Unauthorized"
   invalidToken: "invalid"
-
+  ramazanInvalidToken: "KafamaGoreDegilmiGardasum"
 database:
   host: "localhost"
   port: 3306
