@@ -15,11 +15,11 @@ Feature: As an administrator, I want to access course categories via an API conn
     * The api user verifies that the "remark" information in the response body is "success".
     # Api kullanicisi response bodydeki remark bilgisinin "success" oldugunu dogrular
     * The api user verifies the "<slug>", "<icon>", <order>, <id>, <category_id>, "<locale>" and "<title>" information of the item at <dataIndex> in the response body.
-    # Api kullanıcısı response body icindeki <dataIndex> indexe sahip olanin "<slug>", "<icon>", <order>, <id>, <category_id>, "<locale>" ve "<title>" bilgilerini doğrular.
+    #Api kullanıcısı response body icindeki <dataIndex> indexe sahip olanin "<slug>", "<icon>", <order>, <id>, <category_id>, "<locale>" ve "<title>" bilgilerini doğrular.
 
     Examples:
-      | dataIndex | slug                    | icon                                                     | order| id | category_id | locale | title        |
-      | 1         | Testing | /store/1/default_images/categories_icons/sub_categories/zap.png| 45   | 57 | 614        | en     | Testing|
+      | dataIndex | slug           | icon                                                      | order | id | category_id | locale | title |
+      | 1         | Testing | /store/1/default_images/categories_icons/sub_categories/zap.png  | 45   | 57 | 614         | en     | Testing |
 
 
   Scenario: When a GET request is sent to the /api/categories endpoint with invalid (invalid token) authorization credentials,
@@ -40,4 +40,5 @@ Feature: As an administrator, I want to access course categories via an API conn
 
     #* The api user sends a "GET" request, saves the returned response, and verifies that the status code is '401' with the reason phrase Unauthorized.
     # Api kullanicisi GET request gonderir, donen responsei kaydeder, status codeun '401' ve reason phrase bilgisinin Unauthorized oldugunu dogrular
+
 

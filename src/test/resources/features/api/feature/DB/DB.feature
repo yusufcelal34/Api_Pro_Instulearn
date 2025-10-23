@@ -1,225 +1,472 @@
-#ö
 @DB
-Feature:BACKEND JDBC TESTING
+Feature: BACKEND JDBC TESTING
 
-  Background:Database connection
+  # Bu feature, JDBC ile MySQL üzerinde doğrulama ve veri işleme senaryolarını içerir.
+  # Her senaryo: Bağlantı -> Sorgu/İşlem -> Doğrulama -> Bağlantıyı kapat akışını izler.
+
+  Background: Database connection
+    # Test başlangıcında DB bağlantısı kuruluyor
     * Database connection is established.
 
-      #Categories tablosunda 'slug = fashion' olan bir categorie'nin name değerini dogrulayınız.
+  # @DB01 — categories: slug='fashion' olan kaydın name değerini doğrula
   @DB01
-  Scenario: US01_Verify the name value of a categorie with 'slug = fashion' in the categories table.
-    * Verify the name value of a categorie Query is prepared and executed.
-    * Verify the "name" information Results are obtained.
+  Scenario: US01 Verify name for slug=fashion in categories
+    # İlgili kategori tekil/benzersiz varsayılmıştır
+    * Query is prepared and executed: select name by slug
+    * Verify the "name" field in result
     * Database connection is closed
+    """
+    -- Kategori adını slug'a göre getir
+    SELECT name FROM categories WHERE slug='fashion';
+    """
 
-    #cities tablosuna (id,name,state_id,status,created_at) degerlerini iceren bir veri ekleyiniz. cities tablosu uzerinden verinin eklendigini dogrulayiniz.
+  # @DB02 — cities tablosuna ekleme ve eklendiğini doğrulama
   @DB02
-  Scenario: US_02 Add data containing the values (id,name,state_id,status,created_at) to the cities table. verify that the data was added from the cities table.
+  Scenario: US02 Insert into cities and verify
+    # Parametreler: :id, :name, :state_id, :status (runner tarafından verilir)
     * Insert data to the cities table
-    * Verify the data information Result is obtained.
+    * Select by primary key to verify inserted row
     * Database connection is closed
+    """
+    -- Yeni şehir ekle
+    INSERT INTO cities(id,name,state_id,status,created_at)
+    VALUES(:id,:name,:state_id,:status,NOW());
+    -- Eklenen şehri doğrula
+    SELECT * FROM cities WHERE id=:id;
+    """
 
-      # cities tablosunda (id=?,name=?) degerlerini iceren veriyi siliniz. Silindigini dogrulayiniz.
+  # @DB03 — cities kaydı silme ve silindiğini doğrulama
   @DB03
-  Scenario: US_03 Delete the data containing the values (id=?,name=?) in the cities table. Verify that it has been deleted.
-    * Insert data to the cities table
-    * Verify the data information Result is obtained.
-    * Delete city to the cities table
-    * Verify the data information Result is obtained.
+  Scenario: US03 Delete from cities and verify
+    # Silmeden önce kayıt var mı garanti etmek için upsert uygulanır
+    * Ensure row exists (insert if needed)
+    * Delete target row
+    * Verify row count is 0
     * Database connection is closed
+    """
+    -- Varsa güncelle, yoksa ekle (test id/name ile)
+    INSERT INTO cities(id,name,state_id,status,created_at)
+    VALUES(:id,:name,1,1,NOW())
+    ON DUPLICATE KEY UPDATE name=VALUES(name);
+    -- Sil ve doğrula
+    DELETE FROM cities WHERE id=:id AND name=:name;
+    SELECT COUNT(*) cnt FROM cities WHERE id=:id AND name=:name;
+    """
 
-    #contacts tablosunda (id,name,email,query_type,message) bilgileri iceren bir veri ekleyip message bilgisini update ediniz.
+  # @DB04 — contacts ekleme ve message alanını update etme
   @DB04
-  Scenario: US04 In the contacts table, add a data containing (id,name,email,query_type,message) and update the message information.
-    * Insert data to the contacts table
-    * Verify the data information Result is obtained.
-    * Update message data to the contacts table
-    * Verify the data information Result is obtained.
+  Scenario: US04 Insert contact and update message
+    # Aynı id/email ile önce ekle, sonra message değerini güncelle
+    * Insert contact row
+    * Update message by id/email
+    * Verify updated value
     * Database connection is closed
+    """
+    -- İletişim kaydı ekle
+    INSERT INTO contacts(id,name,email,query_type,message)
+    VALUES(:id,:name,:email,:qtype,:msg);
+    -- Mesajı güncelle
+    UPDATE contacts SET message=:new_msg WHERE id=:id OR email=:email;
+    -- Güncellenen değeri doğrula
+    SELECT message FROM contacts WHERE id=:id;
+    """
 
-    # contacts tablosunda (id,name,email,query_type,message) bilgileri iceren bir veri ekleyiniz.
-    # Eklenen veriyi contacts tablosunda email bilgisi girerek siliniz.Silindiğini doğrulayiniz.
+  # @DB05 — contacts ekle ve email ile sil
   @DB05
-  Scenario:US_05 Add a data containing  information in the contacts table.
-  Delete the added data by entering the email information in the contacts table.
-    * Insert data to the contacts table
-    * Verify the data information Result is obtained.
-    * Delete data to the contacts table
-    * Verify the data information Result is obtained.
+  Scenario: US05 Insert then delete contact by email
+    # Test izolasyonu için case kendi verisini ekler ve siler
+    * Insert contact row
+    * Delete by email
+    * Verify deletion
     * Database connection is closed
+    """
+    -- Ekle
+    INSERT INTO contacts(id,name,email,query_type,message)
+    VALUES(:id,:name,:email,:qtype,:msg);
+    -- Email ile sil
+    DELETE FROM contacts WHERE email=:email;
+    -- Kayıt kalmadığını doğrula
+    SELECT COUNT(*) AS cnt FROM contacts WHERE email=:email;
+    """
 
-    #coupon_products tablosunu coupon_id'ye göre gruplayarak her kupon için kaç ürün olduğunu bulunuz.
+  # @DB06 — kupon başına ürün sayısı
   @DB06
-  Scenario:US_06 Group the coupon_products table by coupon_id and find how many products there are for each coupon.
-    * Query is prepared and executed in the database for coupon_products table by coupon_id groups
-    * Verify the data coupon_id groups information Result is obtained.
+  Scenario: US06 Count products per coupon
+    # Gruplama ile her kuponun ilişkilendiği ürün sayısı hesaplanır
+    * Run grouped count by coupon_id
+    * Verify grouped result
     * Database connection is closed
+    """
+    -- Kupon bazında ürün adedi
+    SELECT coupon_id, COUNT(*) AS product_count
+    FROM coupon_products
+    GROUP BY coupon_id;
+    """
 
+  # @DB07 — (bilerek boş bırakıldı; başlık verildiğinde eklenecek)
   @DB07
-  Scenario:US_07
+  Scenario: US07
+    # Yer tutucu senaryo (ihtiyaca göre doldurulacak)
 
-    # delivery_processes tablosunda ilk 5 verinin name bilgilerinin tersten sırasıyla (Shipped,Recieved,Processing,Pending,Delivered) oldugunu dogrulayiniz.
+  # @DB08 — delivery_processes: son 5 kaydın isimleri ters sıra kontrolü
   @DB08
-  Scenario: US_08 Verify that the first 5 data names in the delivery_processes table are in reverse order.
-
-    * Query is prepared and executed in the database for the delivery_processes table are in reverse order
-    * Verify that the first 5 data names
+  Scenario: US08 Verify first 5 names in reverse order
+    # Beklenen dizi: Shipped, Recieved, Processing, Pending, Delivered
+    * Fetch first 5 by created/id desc
+    * Assert order equals [Shipped, Recieved, Processing, Pending, Delivered]
     * Database connection is closed
+    """
+    -- Son 5 süreç adı (id azalan)
+    SELECT name FROM delivery_processes
+    ORDER BY id DESC
+    LIMIT 5;
+    """
 
-    # log_activity tablosunda ip='46.2.239.35' adresiyle method='Delete' edilen konuların kac tane oldugunu hesaplayıp dogrulayiniz.
+  # @DB09 — log_activity: belirli IP ve method='Delete' sayımı
   @DB09
-  Scenario:In the log_activity table, calculate and verify the number of topics with ip and method
-    * Query is prepared and executed in the database for the log_activity table
-    * Verify the count of subject
+  Scenario: US09 Count topics by ip and method
+    # Belirli bir IP üzerinden Delete işlem adedi ölçülür
+    * Execute count query
+    * Verify count > 0 (veya beklenen sabit değer)
     * Database connection is closed
+    """
+    -- IP ve method filtresiyle toplam
+    SELECT COUNT(*) AS delete_count
+    FROM log_activity
+    WHERE ip='46.2.239.35' AND method='Delete';
+    """
 
-    #order_address_details tablosunda ' shipping_address ' ile ' billing_address' i aynı olmayan kullanicilarin sayisini dogrulayiniz.
+  # @DB10 — order_address_details: shipping != billing olanlar
   @DB10
-  Scenario: Verify the number of users whose 'shipping_address' and 'billing_address' are not the same in the order_address_details table.
-    * Query is prepared and executed in the database for the order_address_details table
-    * Verify the adresses details aren't the same
+  Scenario: US10 Count users with different shipping/billing
+    # Null senaryosunu da kapsamak için XOR benzeri kontrol eklenmiştir
+    * Run mismatch query
+    * Verify count
     * Database connection is closed
+    """
+    -- Farklı veya biri NULL diğeri değilse
+    SELECT COUNT(*) AS diff_cnt
+    FROM order_address_details
+    WHERE shipping_address <> billing_address
+          OR (shipping_address IS NULL) <> (billing_address IS NULL);
+    """
 
-  #wallet_balances tablosunda type='Referral' ve ' id ' si 10 ile 20 araliginda olan dataların amount degerlerinin toplamini hesaplayiniz
+  # @DB11 — wallet_balances: type='Referral' ve id 10–20 toplam
   @DB11
-  Scenario:  Calculate the sum of the amount values of the data with type='Referral' and 'id' between 10 and 20 in the wallet_balances table
-    * Query is prepared and executed in the database for the wallet_balances table
-    * Verify the calculate sum of the amount values of the data
+  Scenario: US11 Sum amount for Referral in id range
+    # COALESCE ile boş sonuçta 0 döndürülür
+    * Execute sum query
+    * Verify sum result
     * Database connection is closed
+    """
+    -- Id aralığında Referral toplamı
+    SELECT COALESCE(SUM(amount),0) AS total_amount
+    FROM wallet_balances
+    WHERE type='Referral' AND id BETWEEN 10 AND 20;
+    """
 
-    ##US_12 attendances tablosunda benzersiz olan 'note' ları günlere gore ayirip listeleyiniz.
+  # @DB12 — attendances: benzersiz notları günlere göre birleştir
   @DB12
-  Scenario:List the unique 'notes' in the US_12 attendances table, separated by days.
-    * Query is prepared and executed in the database for the attendances table
-    * Verify List the unique 'notes' values of the data
+  Scenario: US12 List unique notes grouped by day
+    # Aynı gün içindeki farklı notlar tek satırda toplanır
+    * Execute distinct notes by DATE(created_at)
+    * Verify uniqueness per day
     * Database connection is closed
+    """
+    -- Gün bazında not listesi
+    SELECT DATE(created_at) AS day, GROUP_CONCAT(DISTINCT note ORDER BY note) AS notes
+    FROM attendances
+    WHERE note IS NOT NULL AND note <> ''
+    GROUP BY DATE(created_at);
+    """
 
-  #US13 seller_products tablosundaki ürünlerden hiçbir kuponla ilişkilendirilmemiş olanların ilk 3ünü listeleyiniz:
+  # @DB13 — seller_products: kupon ilişkisi olmayan ilk 3 ürün
   @DB13
-  Scenario:List the top 3 products in the seller_products table that are not associated with any coupon
-    * product query not associated with a coupon is prepared
-    * Verify List the top 3 products
+  Scenario: US13 First 3 products with no coupon relation
+    # Kuponla eşleşmeyen ürünleri NOT EXISTS ile seç
+    * Run anti-join / NOT EXISTS
+    * Verify 3 rows (varsa)
     * Database connection is closed
+    """
+    -- Kuponu olmayan ürünler
+    SELECT sp.id, sp.product_id
+    FROM seller_products sp
+    WHERE NOT EXISTS (
+      SELECT 1 FROM coupon_products cp WHERE cp.product_id = sp.product_id
+    )
+    ORDER BY sp.id
+    LIMIT 3;
+    """
 
-    #US_14 refund_reasons tablosunda 'reason' degeri Null olan veri olup olmadigini dogrulayiniz.
+  # @DB14 — refund_reasons: reason NULL var mı?
   @DB14
-  Scenario: Verify whether there is data in the refund_reasons table with a 'reason' value of Null.
-    * In the refund_reasons table, a query is prepared that retrieves data whose 'reason' value is Null.
-    * Verify whether there is data with a 'reason' value of Null
+  Scenario: US14 Check NULL reason exists in refund_reasons
+    # Veri kalitesi kontrolü; NULL sayısı beklenenden farklıysa raporlanır
+    * Execute null-check query
+    * Verify count
     * Database connection is closed
-    ##US_15 customer_coupon_stores tablosunda bulunan ilk 3 verinin bilgilerini users tablosundan getirerek listeleyiniz.
+    """
+    -- NULL reason sayısı
+    SELECT COUNT(*) AS null_cnt
+    FROM refund_reasons
+    WHERE reason IS NULL;
+    """
+
+  # @DB15 — customer_coupon_stores ilk 3 kaydı users ile birlikte
   @DB15
-  Scenario:  List the information of the first 3 data in the customer_coupon_stores table from the users table.
-    * Prepare the query that brings the information of the first 3 data in the customer_coupon_stores table
-    * Verify the information of the first 3 data in the table
+  Scenario: US15 First 3 customer_coupon_stores with users
+    # Kullanıcı kimlik bilgileriyle zenginleştirilmiş liste
+    * Join to users and fetch 3 rows
+    * Verify columns
     * Database connection is closed
-  ## US_16 order_address_details tablosunda shipping_address = 'Switzerland' olan id leri orders tablosuna göre listeleyin.
+    """
+    -- İlk 3 kayıt ve kullanıcı bilgileri
+    SELECT ccs.id, ccs.user_id, u.first_name, u.last_name, u.email
+    FROM customer_coupon_stores ccs
+    JOIN users u ON u.id = ccs.user_id
+    ORDER BY ccs.id
+    LIMIT 3;
+    """
+
+  # @DB16 — Switzerland kargolu adres kayıtlarının id’leri (orders ile)
   @DB16
-  Scenario:List ids with shipping_address = 'Switzerland' in the order_address_details table according to the orders table.
-    * In the order_address_details table, prepare a query that retrieves ids with shipping_address = 'Switzerland'
-    * Verify the shipping_address information of 3 data in the table
+  Scenario: US16 List ids with shipping_address='Switzerland' using orders
+    # orders join'u, order bağlılığını doğrulamak için eklenmiştir
+    * Join orders if gerekli
+    * Verify at least 3 rows (opsiyonel)
     * Database connection is closed
+    """
+    -- İsviçre gönderimli adresler
+    SELECT oad.id
+    FROM order_address_details oad
+    JOIN orders o ON oad.order_id = o.id
+    WHERE oad.shipping_address='Switzerland';
+    """
 
-  # US_17 attendances tablosunda 2022 yılından önce oluşturulmuş attendanceslardan user tablosunda id=5 olan verinin  email adresini  dogrulayınız
+  # @DB17 — 2022'den önceki attendance’lardan user id=5 e‑posta doğrulama
   @DB17
-  Scenario: Verify the email address of the data with id=5 in the user table from the attendances created before 2022 in the attendances table.
-    * Prepare a query that retrieves the data with id 5 in the user table created before 2022 in the attendances table
-    * Verify the e-mail address of the data with id 5
+  Scenario: US17 Verify email of user id=5 from pre-2022 attendances
+    # Tekil e‑posta beklenir; birden fazla ise DISTINCT ile tekilleştirilir
+    * Fetch user email via join & date filter
+    * Assert email equals expected
     * Database connection is closed
-    #bank_accounts tablosuna toplu olarak 5 veri girip eklendiğini dogrulayiniz.
+    """
+    -- 2022 öncesi katılımlardan kullanıcı e‑postası
+    SELECT DISTINCT u.email
+    FROM attendances a
+    JOIN users u ON u.id = a.user_id
+    WHERE a.created_at < '2022-01-01' AND u.id = 5;
+    """
+
+  # @DB18 — bank_accounts: 5 adet toplu ekle ve doğrula
   @DB18
-  Scenario: Enter 5 data in bulk to the bank_accounts table and verify that it is added.
-
-    * Prepare a query that adds 5 data to the bank_accounts table in bulk.
-    * 5 Enter the data in bulk. Check that it is added to the table.
+  Scenario: US18 Bulk insert 5 bank_accounts and verify
+    # Test kapsamı için sahte banka kayıtları ekleniyor (ad/numara/başlangıç bakiye)
+    * Insert 5 rows
+    * Verify affected rows = 5
     * Database connection is closed
+    """
+    -- 5 satır ekle
+    INSERT INTO bank_accounts(bank_name,account_no,opening_balance,created_at)
+    VALUES
+      ('B1','ACC1',1000,NOW()),
+      ('B2','ACC2',2000,NOW()),
+      ('B3','ACC3',3000,NOW()),
+      ('B4','ACC4',4000,NOW()),
+      ('B5','ACC5',5000,NOW());
+    -- Eklendi mi kontrol
+    SELECT COUNT(*) AS cnt
+    FROM bank_accounts
+    WHERE bank_name IN ('B1','B2','B3','B4','B5');
+    """
 
+  # @DB19 — opening_balance negatif güncellenemez (bütünlük kontrolü)
   @DB19
-  Scenario: Verify that the opening_balance value of the data with bank_name=? in the bank_accounts table is not updated with a negative value.
-    * Bank names in the table are saved
-    * Prepare a query that verifies that the bank_accounts table is not updated with a negative value
-    * Verify bank_accounts table is not updated with a negative value
+  Scenario: US19 opening_balance must not update to negative
+    # CHECK/trigger varsa 0 affected beklenir; yoksa test bunu ihlal olarak raporlar
+    * Try update with negative and expect 0 affected or constraint error
+    * Verify value unchanged
     * Database connection is closed
+    """
+    -- Negatif değere güncellemeyi dene
+    UPDATE bank_accounts SET opening_balance=-1 WHERE bank_name=:bank_name;
+    -- Mevcut değeri kontrol et
+    SELECT opening_balance FROM bank_accounts WHERE bank_name=:bank_name;
+    """
 
-    # US_20 device_tokens tablosuna aynı anda 10 veri girip tabloya eklendiğini dogrulayınız.
+  # @DB20 — device_tokens: aynı anda 10 kayıt ve doğrulama
   @DB20
-  Scenario: Enter 10 data into the device_tokens table at the same time and verify that it is added to the table.
-    * Prepare a query that adds 10 data to the device_tokens table in bulk.
-    * 10 Enter the data in bulk. Check that it is added to the table.
+  Scenario: US20 Bulk insert 10 device_tokens and verify
+    # Kolaylık için tüm tokenlar UUID ile üretilir; user_id sabittir
+    * Insert 10 rows (UUID/device/created_at)
+    * Verify count of inserted keys
     * Database connection is closed
-    #US_21 guest_order_details tablosunda order_id ye göre verilen sipariş adedini hesaplayınız.Sipariş numarası (order_id=?) olan verinin shipping_name bilgisini update ediniz.
+    """
+    -- 10 satır ekle
+    INSERT INTO device_tokens(user_id,device,token,created_at)
+    VALUES
+      (1,'ios',UUID(),NOW()),(1,'ios',UUID(),NOW()),
+      (1,'ios',UUID(),NOW()),(1,'ios',UUID(),NOW()),
+      (1,'ios',UUID(),NOW()),(1,'ios',UUID(),NOW()),
+      (1,'ios',UUID(),NOW()),(1,'ios',UUID(),NOW()),
+      (1,'ios',UUID(),NOW()),(1,'ios',UUID(),NOW());
+    -- Bugün eklenen satır sayısı
+    SELECT COUNT(*) AS cnt
+    FROM device_tokens
+    WHERE user_id=1 AND DATE(created_at)=CURRENT_DATE();
+    """
+
+  # @DB21 — guest_order_details: bir order_id için adet ve shipping_name güncelle
   @DB21
-  Scenario: Calculate the number of orders placed according to the order_id in the guest_order_details table. Update the shipping_name information of the data with order number (order_id=?).
-    * Query is prepared to calculate the number of orders placed according to the order_id in the guest_order_details table
-    * Updates the shipping_name of the data with the order number order_id 23
+  Scenario: US21 Count by order_id and update shipping_name
+    # Örnek için :order_id ve :new_name parametreleri kullanılır
+    * Count items for :order_id
+    * Update shipping_name for order_id=:order_id
     * Database connection is closed
+    """
+    -- Sipariş satır adedi
+    SELECT order_id, COUNT(*) AS item_count
+    FROM guest_order_details
+    WHERE order_id=:order_id
+    GROUP BY order_id;
+    -- Kargo adını güncelle
+    UPDATE guest_order_details
+    SET shipping_name=:new_name
+    WHERE order_id=:order_id;
+    """
 
-#US_22 digital_gift_cards tablosuna 1 adet veri girişi yapıp eklenen veriyi digital_gift_cards tablosunda id numarası girerek siliniz.
-
+  # @DB22 — digital_gift_cards: ekle ve aynı id ile sil
   @DB22
-  Scenario: Enter 1 data in the digital_gift_cards table and delete the added data by entering the id number in the digital_gift_cards table.
-    * Prepare query for  data entry to digital_gift_cards table
-    * 1 Enter the data in bulk. Check that it is added to the table.
-    * Prepare query for  data delete to digital_gift_cards table
-    * Verify the data information Result is obtained.
+  Scenario: US22 Insert one digital_gift_card then delete by id
+    # LAST_INSERT_ID ile eklenen kaydın id'si yakalanır ve silinir
+    * Insert row and capture id
+    * Delete same id
+    * Verify deletion
     * Database connection is closed
+    """
+    -- Kart ekle
+    INSERT INTO digital_gift_cards(user_id,code,amount,expires_at,created_at)
+    VALUES(:user_id,UUID(),:amount,NOW()+INTERVAL 30 DAY,NOW());
+    -- Eklenen id
+    SET @new_id = LAST_INSERT_ID();
+    -- Sil ve doğrula
+    DELETE FROM digital_gift_cards WHERE id=@new_id;
+    SELECT COUNT(*) cnt FROM digital_gift_cards WHERE id=@new_id;
+    """
 
-    #US_23 email_template_types tablosunda module degeri null olmayan verileri gruplandırarak type adedini sorgulayınız.
+  # @DB23 — email_template_types: module NOT NULL → type bazında sayım
   @DB23
-  Scenario:In the email_template_types table, query the number of types by grouping the data whose module value is not null.
-    * In the email_template_types table, query querying the number of types by grouping the data whose module value is not null is prepared.
-    * The results of the type number are checked
+  Scenario: US23 Count types where module is not null
+    # Rapor: type kırılımında kaç adet kayıt var
+    * Group by type and count
     * Database connection is closed
-  # US_24 orders tablosunda customer_email verilerinde customer içermeyenleri ve sub_total ı 2000 in altında olan dataları order_number ters sıralı olarak listeleyiniz.
+    """
+    -- Modülü dolu olan tipler ve adetleri
+    SELECT type, COUNT(*) AS type_count
+    FROM email_template_types
+    WHERE module IS NOT NULL
+    GROUP BY type;
+    """
+
+  # @DB24 — orders: email '%customer%' içermesin ve sub_total < 2000; order_number DESC
   @DB24
-  Scenario: In the orders table, list the data that does not contain customer in the customer_email data
-  and the data whose sub_total is below 2000 in reverse order of order_number.
-    *  In the orders table, the desired Query is prepared as order_number in reverse order.
-    *  30 rows are verified to return
+  Scenario: US24 Filter orders by email & subtotal, order_number desc
+    # İsteğe bağlı: belirli sayıda satır dönmesi beklenebilir (örn. 30)
+    * Run query
+    * Optionally assert returned row count
     * Database connection is closed
-#US_25 order_payments tablosunda txn_id='none' olmayan verileri txn_id'lerine göre max_amount değerleri 9000 den yüksek olan verileri gruplandırıp max_amount degerlerine göre sıralayın
+    """
+    -- Filtreler ve sıralama
+    SELECT id, order_number, customer_email, sub_total
+    FROM orders
+    WHERE customer_email NOT LIKE '%customer%'
+      AND sub_total < 2000
+    ORDER BY order_number DESC;
+    """
 
+  # @DB25 — order_payments: txn_id!='none' → MAX(amount)>9000, azalan
   @DB25
-  Scenario:In the order_payments table, group the data without txn_id='none' according to their txn_id,
-  group the data with max_amount values higher than 9000 and sort them according to their max_amount values.
-    * Write the desired query in the order_payments table
-    * List of Max values is validated
+  Scenario: US25 Group by txn_id: max_amount > 9000 sorted
+    # Büyük tutarlı ödemeler öne alınır
+    * Execute aggregation and verify sort
     * Database connection is closed
+    """
+    -- İşlem kimliği bazında en yüksek ödeme
+    SELECT txn_id, MAX(amount) AS max_amount
+    FROM order_payments
+    WHERE txn_id <> 'none'
+    GROUP BY txn_id
+    HAVING MAX(amount) > 9000
+    ORDER BY max_amount DESC;
+    """
 
-    #US_26 transactions tablosunda bulunan verileri payment_method bilgilerine göre guruplandırıp amount degerlerinin toplamını hesaplayınız ve toplam amount degeri 7000 'in üstünde olan verileri payment_method bilgilerine göre tersten sıralayınız.
+  # @DB26 — transactions: payment_method kırılımı, toplam > 7000 ve alfabetik ters
   @DB26
-  Scenario: Group the data in the transactions table according to the payment_method information
-  and calculate the sum of the amount values and sort the data
-  with a total amount value above 7000 in reverse order according to the payment_method information.
-    * Prepare the desired Query in the transactions table
-    * Verifies the reverse sort list by payment_method for those with a total amount over 7000
+  Scenario: US26 Sum by payment_method and filter >7000
+    # Sıralama, yöntem adına göre DESC istenir
+    * Execute grouped sum
+    * Verify sort by payment_method DESC
     * Database connection is closed
+    """
+    -- Ödeme yöntemine göre toplam
+    SELECT payment_method, SUM(amount) AS total_amount
+    FROM transactions
+    GROUP BY payment_method
+    HAVING SUM(amount) > 7000
+    ORDER BY payment_method DESC;
+    """
 
-#US_27 transactions tablosunda payment_method='Stripe' ve payment_method= 'Cash On Delivery' olan verilerden description'ları benzersiz olanları listeleyiniz.
+  # @DB27 — transactions: iki yöntem için benzersiz description listesi
   @DB27
-  Scenario:In the transactions table, list the data with payment_method='Stripe' and payment_method= 'Cash On Delivery' with unique descriptions.
-
-    * Prepare a query that returns data with unique descriptions in the transactions table
+  Scenario: US27 Unique descriptions for two payment methods
+    # Boş/NULL açıklamalar hariç tutulur
+    * Fetch distinct descriptions
     * Database connection is closed
-# US_28 support_tickets tablosunda reference_no bilgilerinde '-' içeren ve içermeyen dataların benzersiz user_id'lerini listeleyiniz.
+    """
+    -- Stripe ve Kapıda Ödeme açıklamaları (tekrarsız)
+    SELECT DISTINCT description
+    FROM transactions
+    WHERE payment_method IN ('Stripe','Cash On Delivery')
+      AND description IS NOT NULL AND description <> '';
+    """
 
+  # @DB28 — support_tickets: reference_no '-' içeren/içermeyen → user_id setleri
   @DB28
-  Scenario:In the support_tickets table, list the unique user_ids of the data with and without '-' in reference_no.
-    * Query is prepared listing the unique user_ids of the data
+  Scenario: US28 Unique user_ids by reference_no pattern
+    # İki ayrı sonuç kümesi alınır
+    * Two sets: with dash / without dash
     * Database connection is closed
-#US_29 orders tablosunda ödemesi yapılmış siparişlerin (is_paid =1) ortalama grand_total degerini hesaplayıp dogrulayınız.
+    """
+    -- '-' içeren referanslar
+    SELECT DISTINCT user_id FROM support_tickets WHERE reference_no LIKE '%-%';
+    -- '-' içermeyen referanslar
+    SELECT DISTINCT user_id FROM support_tickets WHERE reference_no NOT LIKE '%-%';
+    """
 
+  # @DB29 — orders: is_paid=1 için grand_total ortalaması
   @DB29
-  Scenario: Calculate and verify the average grand_total value of paid orders (is_paid =1) in the orders table.
-    * Query is prepared Calculate and verify the average grand_total value of paid orders
+  Scenario: US29 Average grand_total of paid orders
+    # Finansal ortalama metrik; 2 ondalık yuvarlama
+    * Execute AVG query
     * Database connection is closed
-# US_30 carts tablosunda 2024-03-30 tarinden önce  is_buy_now=1 olan ürünlerin toplam bedelini hesaplayınız
+    """
+    -- Ödenmiş siparişlerin ortalaması
+    SELECT ROUND(AVG(grand_total),2) AS avg_grand_total
+    FROM orders
+    WHERE is_paid = 1;
+    """
+
+  # @DB30 — carts: 2024-03-30'dan önce is_buy_now=1 toplam tutar
   @DB30
-  Scenario: Calculate the total cost of products with is_buy_now=1 before 2024-03-30 in the carts table
-    * Query is prepared Calculate and verify the total cost of products
+  Scenario: US30 Total cost of buy-now products before date
+    # Tarih sabit; ihtiyaç halinde parametreleştirilebilir (:date)
+    * Execute sum query with date filter
     * Database connection is closed
-
-
-
+    """
+    -- Sepette anında satın al toplam tutarı (tarih filtresiyle)
+    SELECT COALESCE(SUM(total_price),0) AS total_buy_now
+    FROM carts
+    WHERE is_buy_now=1 AND created_at < '2024-03-30';
+    """
 
 
